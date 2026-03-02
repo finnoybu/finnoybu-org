@@ -16,24 +16,24 @@ export default function Home() {
   const [newDomain, setNewDomain] = useState("");
   const [error, setError] = useState<string>("");
 
-  // Load domains on mount
+  // Load domains on mount and initialize selected domain
   useEffect(() => {
-    loadDomains();
-  }, []);
-
-  async function loadDomains() {
-    try {
-      const response = await fetch("/api/snapshot");
-      if (!response.ok) throw new Error("Failed to load domains");
-      const data = await response.json();
-      setDomains(data.domains || []);
-      if (data.domains && data.domains.length > 0) {
-        setSelectedDomain(data.domains[0].domain);
+    (async () => {
+      try {
+        const response = await fetch("/api/snapshot");
+        if (!response.ok) throw new Error("Failed to load domains");
+        const data = await response.json();
+        const domainsList = data.domains || [];
+        setDomains(domainsList);
+        // Only set selected domain if not already selected
+        if (domainsList.length > 0) {
+          setSelectedDomain(domainsList[0].domain);
+        }
+      } catch (err) {
+        setError(String(err));
       }
-    } catch (err) {
-      setError(String(err));
-    }
-  }
+    })();
+  }, []);
 
   async function handleAddDomain() {
     if (!newDomain.trim()) {
@@ -55,9 +55,18 @@ export default function Home() {
         throw new Error("Failed to add domain");
       }
 
+      const newDomainData = await response.json();
+      const addedDomain = newDomainData.domain;
+      
       setNewDomain("");
       setAddingDomain(false);
-      await loadDomains();
+      
+      // Add the new domain to the list and select it
+      setDomains((prevDomains) => [
+        ...prevDomains,
+        { domain: addedDomain, snapshot: newDomainData },
+      ]);
+      setSelectedDomain(addedDomain);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -85,7 +94,17 @@ export default function Home() {
         throw new Error("Failed to create snapshot");
       }
 
-      await loadDomains();
+      // Fetch only the latest snapshot for this domain (don't reload all domains)
+      const latestResponse = await fetch(`/api/snapshot/latest?domain=${domain}`);
+      if (latestResponse.ok) {
+        const latestSnapshot = await latestResponse.json();
+        // Update the domains list with the new snapshot for this domain only
+        setDomains((prevDomains) =>
+          prevDomains.map((d) =>
+            d.domain === domain ? { domain, snapshot: latestSnapshot } : d
+          )
+        );
+      }
     } catch (err) {
       setError(String(err));
     } finally {
@@ -112,8 +131,11 @@ export default function Home() {
         throw new Error("Failed to delete domain");
       }
 
+      // Remove domain from state and clear selection
+      setDomains((prevDomains) =>
+        prevDomains.filter((d) => d.domain !== selectedDomain)
+      );
       setSelectedDomain("");
-      await loadDomains();
     } catch (err) {
       setError(String(err));
     } finally {
@@ -174,11 +196,14 @@ export default function Home() {
             <option value="">
               {domains.length === 0 ? "No domains" : "Select Domain"}
             </option>
-            {domains.map((d) => (
-              <option key={d.domain} value={d.domain}>
-                {d.domain}
-              </option>
-            ))}
+            {domains
+              .slice()
+              .sort((a, b) => a.domain.localeCompare(b.domain))
+              .map((d) => (
+                <option key={d.domain} value={d.domain}>
+                  {d.domain}
+                </option>
+              ))}
           </select>
 
           <button
