@@ -1,41 +1,42 @@
 {
   "domains": {
-    "finnoybu.org": {
+    "example.com": {
       "lastSnapshot": {
-        "domain": "finnoybu.org",
-        "timestamp": "2026-03-02T14:05:29.932Z",
-        "nameservers": [
-          "dns1.registrar-servers.com",
-          "dns2.registrar-servers.com"
-        ],
-        "status": [
-          "client transfer prohibited",
-          "add period"
-        ],
-        "expires": "2031-03-02T13:07:24.715Z",
-        "created": "2026-03-02T13:07:24.715Z",
-        "aRecords": [
-          "162.255.119.90"
-        ],
-        "mxRecords": [
-          "10 eforward2.registrar-servers.com",
-          "10 eforward3.registrar-servers.com",
-          "15 eforward4.registrar-servers.com",
-          "20 eforward5.registrar-servers.com",
-          "10 eforward1.registrar-servers.com"
-        ],
-        "txtRecords": [
-          "v=spf1 include:spf.efwd.registrar-servers.com ~all"
-        ]
+        "domain": "example.com",
+        "timestamp": "1970-01-01T00:00:00.000Z",
+        "registrar": "",
+        "registrarIanaId": "",
+        "created": "",
+        "expires": "",
+        "lastUpdated": "",
+        "status": [],
+        "dnssec": false,
+        "nameservers": [],
+        "aRecords": [],
+        "mxRecords": [],
+        "txtRecords": [],
+        "soa": "",
+        "asn": "",
+        "hostingProvider": "",
+        "cdnDetected": false,
+        "sslIssuer": "",
+        "sslExpires": "",
+        "sslSans": [],
+        "sslFingerprint": "",
+        "httpsReachable": false,
+        "internalOwner": "",
+        "licensedTo": "",
+        "notes": ""
       }
     },
     "finnoybu.com": {
       "lastSnapshot": {
         "domain": "finnoybu.com",
-        "timestamp": "2026-03-02T14:11:35.011Z",
+        "timestamp": "2026-03-02T14:47:50.699Z",
+        "dnssec": false,
         "nameservers": [
-          "ns31.domaincontrol.com",
-          "ns32.domaincontrol.com"
+          "ns32.domaincontrol.com",
+          "ns31.domaincontrol.com"
         ],
         "status": [
           "client delete prohibited",
@@ -47,10 +48,10 @@
         "expires": "2026-10-02T19:23:09Z",
         "lastUpdated": "2025-10-03T16:24:17Z",
         "aRecords": [
+          "185.199.109.153",
           "185.199.110.153",
           "185.199.111.153",
-          "185.199.108.153",
-          "185.199.109.153"
+          "185.199.108.153"
         ],
         "soa": "ns31.domaincontrol.com dns.jomax.net 2024120800 28800 7200 604800 600",
         "httpsReachable": true,
@@ -59,7 +60,62 @@
         "sslSans": [
           "DNS:finnoybu.com"
         ],
-        "sslFingerprint": "18:E6:50:AF:01:BE:96:06:EC:DA:85:FA:5B:AA:17:4E:08:EB:20:B2"
+        "sslFingerprint": "C4:E5:3D:36:C4:67:F4:0C:F5:F7:70:CC:9D:7E:26:70:ED:73:1A:E1:FA:DD:1F:48:36:48:C7:62:F4:5E:54:04",
+        "cdnDetected": false,
+        "registrar": "",
+        "registrarIanaId": "",
+        "mxRecords": [],
+        "txtRecords": [],
+        "asn": "",
+        "hostingProvider": "",
+        "internalOwner": "",
+        "licensedTo": "",
+        "notes": ""
+      }
+    },
+    "finnoybu.org": {
+      "lastSnapshot": {
+        "domain": "finnoybu.org",
+        "timestamp": "2026-03-02T14:47:56.187Z",
+        "dnssec": false,
+        "nameservers": [
+          "dns1.registrar-servers.com",
+          "dns2.registrar-servers.com"
+        ],
+        "status": [
+          "client transfer prohibited",
+          "add period"
+        ],
+        "expires": "2031-03-02T13:07:24.715Z",
+        "created": "2026-03-02T13:07:24.715Z",
+        "lastUpdated": "2026-03-02T13:07:28.497Z",
+        "aRecords": [
+          "162.255.119.90"
+        ],
+        "mxRecords": [
+          "15 eforward4.registrar-servers.com",
+          "20 eforward5.registrar-servers.com",
+          "10 eforward1.registrar-servers.com",
+          "10 eforward2.registrar-servers.com",
+          "10 eforward3.registrar-servers.com"
+        ],
+        "txtRecords": [
+          "v=spf1 include:spf.efwd.registrar-servers.com ~all"
+        ],
+        "soa": "dns1.registrar-servers.com hostmaster.registrar-servers.com 1772456851 43200 3600 604800 3601",
+        "httpsReachable": false,
+        "cdnDetected": false,
+        "registrar": "",
+        "registrarIanaId": "",
+        "asn": "",
+        "hostingProvider": "",
+        "sslIssuer": "",
+        "sslExpires": "",
+        "sslSans": [],
+        "sslFingerprint": "",
+        "internalOwner": "",
+        "licensedTo": "",
+        "notes": ""
       }
     }
   }
