@@ -174,16 +174,17 @@ export async function writeStore(store: DomainStore): Promise<void> {
  */
 function validateSnapshot(snapshot: DomainSnapshot): DomainSnapshot {
   const canonical = getCanonicalBase(snapshot.domain, snapshot.timestamp);
-  const validatedSnapshot: Partial<DomainSnapshot> = { ...canonical };
+  const validatedSnapshot = { ...canonical };
 
   // Merge in provided snapshot values, preserving all canonical keys
   for (const key in snapshot) {
-    if (key in snapshot && (snapshot as any)[key] !== undefined) {
-      (validatedSnapshot as any)[key] = (snapshot as any)[key];
+    const value = snapshot[key as keyof DomainSnapshot];
+    if (value !== undefined) {
+      (validatedSnapshot as Record<string, unknown>)[key] = value;
     }
   }
 
-  return validatedSnapshot as DomainSnapshot;
+  return validatedSnapshot;
 }
 
 export async function addDomain(domain: string, snapshot: DomainSnapshot): Promise<void> {
