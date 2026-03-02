@@ -63,6 +63,46 @@ export interface DomainSnapshot {
   internalOwner?: string;
   licensedTo?: string;
   notes?: string;
+
+  // Level 3: Advanced Registration / RDAP
+  rdapEntities?: any[];
+  rdapRaw?: any;
+  registrantContactEmail?: string;
+  registrantCountry?: string;
+  registryOperator?: string;
+
+  // Level 3: Advanced DNS Security
+  dnskeyRecords?: string[];
+  dsRecords?: string[];
+  caaRecords?: string[];
+  zoneTransferAllowed?: boolean;
+
+  // Level 3: Advanced TLS Analysis
+  sslChainValid?: boolean;
+  sslChainDepth?: number;
+  sslSignatureAlgorithm?: string;
+  sslPublicKeyAlgorithm?: string;
+  sslKeySize?: number;
+  sslOcspStapled?: boolean;
+
+  // Level 3: HTTP Security Headers
+  hstsMaxAge?: number;
+  hstsPreload?: boolean;
+  cspHeaderPresent?: boolean;
+  xFrameOptionsPresent?: boolean;
+  referrerPolicyPresent?: boolean;
+
+  // Level 3: IP Intelligence
+  ipReputationScore?: number;
+  ipBlacklistHits?: string[];
+  ipRir?: string;
+  ipAllocationDate?: string;
+
+  // Level 3: Snapshot Integrity / Monitoring
+  snapshotHash?: string;
+  previousSnapshotHash?: string;
+  changeSummary?: any[];
+  riskScore?: number;
 }
 
 interface DomainStore {
@@ -76,7 +116,9 @@ interface DomainStore {
 const DATA_FILE = path.join(process.cwd(), "data", "domains.json");
 
 /**
- * Returns a canonical base DomainSnapshot with all fields present (v0.0.4 schema).
+ * Returns a canonical base DomainSnapshot with all fields present (v0.0.7 schema).
+ * Level 1-2 fields are populated by snapshot queries.
+ * Level 3 fields are future-proofing for audit/compliance and remain empty in v0.0.x.
  * All values are initialized to empty/default values appropriate for their type.
  * This serves as the foundation for all snapshot generation.
  */
@@ -133,6 +175,46 @@ export function getCanonicalBase(domain: string, timestamp: string = new Date().
     internalOwner: "",
     licensedTo: "",
     notes: "",
+
+    // Level 3: Advanced Registration / RDAP
+    rdapEntities: [],
+    rdapRaw: null,
+    registrantContactEmail: "",
+    registrantCountry: "",
+    registryOperator: "",
+
+    // Level 3: Advanced DNS Security
+    dnskeyRecords: [],
+    dsRecords: [],
+    caaRecords: [],
+    zoneTransferAllowed: false,
+
+    // Level 3: Advanced TLS Analysis
+    sslChainValid: false,
+    sslChainDepth: 0,
+    sslSignatureAlgorithm: "",
+    sslPublicKeyAlgorithm: "",
+    sslKeySize: 0,
+    sslOcspStapled: false,
+
+    // Level 3: HTTP Security Headers
+    hstsMaxAge: 0,
+    hstsPreload: false,
+    cspHeaderPresent: false,
+    xFrameOptionsPresent: false,
+    referrerPolicyPresent: false,
+
+    // Level 3: IP Intelligence
+    ipReputationScore: 0,
+    ipBlacklistHits: [],
+    ipRir: "",
+    ipAllocationDate: "",
+
+    // Level 3: Snapshot Integrity / Monitoring
+    snapshotHash: "",
+    previousSnapshotHash: "",
+    changeSummary: [],
+    riskScore: 0,
   };
 }
 
@@ -168,7 +250,7 @@ export async function writeStore(store: DomainStore): Promise<void> {
 }
 
 /**
- * Validates that a snapshot has all required DomainSnapshot keys per v0.0.4 schema.
+ * Validates that a snapshot has all required DomainSnapshot keys per v0.0.7 schema.
  * Keys may have undefined values, but the keys themselves must exist.
  * Uses canonical base to ensure completeness.
  */

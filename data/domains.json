@@ -76,7 +76,7 @@
     "finnoybu.com": {
       "lastSnapshot": {
         "domain": "finnoybu.com",
-        "timestamp": "2026-03-02T16:27:16.435Z",
+        "timestamp": "2026-03-02T17:18:29.364Z",
         "registrar": "GoDaddy.com, LLC",
         "registrarIanaId": "146",
         "registrantOrganization": "",
@@ -91,8 +91,8 @@
         ],
         "dnssec": false,
         "nameservers": [
-          "ns31.domaincontrol.com",
-          "ns32.domaincontrol.com"
+          "ns32.domaincontrol.com",
+          "ns31.domaincontrol.com"
         ],
         "soa": {
           "primaryNs": "ns31.domaincontrol.com",
@@ -104,15 +104,15 @@
           "minimum": 600
         },
         "aRecords": [
-          "185.199.109.153",
-          "185.199.108.153",
+          "185.199.110.153",
           "185.199.111.153",
-          "185.199.110.153"
+          "185.199.108.153",
+          "185.199.109.153"
         ],
         "aaaaRecords": [
-          "2606:50c0:8003::153",
-          "2606:50c0:8002::153",
           "2606:50c0:8001::153",
+          "2606:50c0:8002::153",
+          "2606:50c0:8003::153",
           "2606:50c0:8000::153"
         ],
         "cnameRecords": [],
@@ -121,13 +121,13 @@
         "srvRecords": [],
         "ipAddresses": [
           "185.199.110.153",
-          "185.199.109.153",
-          "185.199.108.153",
           "185.199.111.153",
-          "2606:50c0:8000::153",
-          "2606:50c0:8003::153",
+          "185.199.108.153",
+          "185.199.109.153",
+          "2606:50c0:8001::153",
           "2606:50c0:8002::153",
-          "2606:50c0:8001::153"
+          "2606:50c0:8003::153",
+          "2606:50c0:8000::153"
         ],
         "asn": "AS54113",
         "asnName": "US-GITHUB-20170413",
@@ -149,7 +149,35 @@
         "dkimSelectors": [],
         "internalOwner": "",
         "licensedTo": "",
-        "notes": ""
+        "notes": "",
+        "rdapEntities": [],
+        "rdapRaw": null,
+        "registrantContactEmail": "",
+        "registrantCountry": "",
+        "registryOperator": "",
+        "dnskeyRecords": [],
+        "dsRecords": [],
+        "caaRecords": [],
+        "zoneTransferAllowed": false,
+        "sslChainValid": false,
+        "sslChainDepth": 0,
+        "sslSignatureAlgorithm": "",
+        "sslPublicKeyAlgorithm": "",
+        "sslKeySize": 0,
+        "sslOcspStapled": false,
+        "hstsMaxAge": 0,
+        "hstsPreload": false,
+        "cspHeaderPresent": false,
+        "xFrameOptionsPresent": false,
+        "referrerPolicyPresent": false,
+        "ipReputationScore": 0,
+        "ipBlacklistHits": [],
+        "ipRir": "",
+        "ipAllocationDate": "",
+        "snapshotHash": "",
+        "previousSnapshotHash": "",
+        "changeSummary": [],
+        "riskScore": 0
       }
     },
     "finnoybu.org": {
