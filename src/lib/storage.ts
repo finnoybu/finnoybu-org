@@ -1,13 +1,25 @@
 import fs from "fs/promises";
 import path from "path";
 
+export interface DomainSOA {
+  primaryNs: string;
+  hostmaster: string;
+  serial: number;
+  refresh: number;
+  retry: number;
+  expire: number;
+  minimum: number;
+}
+
 export interface DomainSnapshot {
+  // Core Identity
   domain: string;
   timestamp: string;
 
-  // Registration Layer
+  // Registration Layer (RDAP)
   registrar?: string;
   registrarIanaId?: string;
+  registrantOrganization?: string;
   created?: string;
   expires?: string;
   lastUpdated?: string;
@@ -16,24 +28,38 @@ export interface DomainSnapshot {
 
   // DNS Layer
   nameservers?: string[];
+  soa?: DomainSOA | null;
   aRecords?: string[];
+  aaaaRecords?: string[];
+  cnameRecords?: string[];
   mxRecords?: string[];
   txtRecords?: string[];
-  soa?: string;
+  srvRecords?: string[];
 
   // Infrastructure Layer
+  ipAddresses?: string[];
   asn?: string;
+  asnName?: string;
   hostingProvider?: string;
   cdnDetected?: boolean;
+  ipCountry?: string;
 
-  // Security Layer
-  sslIssuer?: string;
-  sslExpires?: string;
-  sslSans?: string[];
-  sslFingerprint?: string;
+  // TLS / Security Layer
   httpsReachable?: boolean;
+  sslIssuer?: string;
+  sslSubject?: string;
+  sslSans?: string[];
+  sslValidFrom?: string;
+  sslExpires?: string;
+  sslFingerprint?: string;
+  hstsEnabled?: boolean;
 
-  // Optional Internal Governance Metadata
+  // Email Security Layer
+  spfRecord?: string;
+  dmarcRecord?: string;
+  dkimSelectors?: string[];
+
+  // Internal Governance Metadata
   internalOwner?: string;
   licensedTo?: string;
   notes?: string;
@@ -48,6 +74,67 @@ interface DomainStore {
 }
 
 const DATA_FILE = path.join(process.cwd(), "data", "domains.json");
+
+/**
+ * Returns a canonical base DomainSnapshot with all fields present (v0.0.4 schema).
+ * All values are initialized to empty/default values appropriate for their type.
+ * This serves as the foundation for all snapshot generation.
+ */
+export function getCanonicalBase(domain: string, timestamp: string = new Date().toISOString()): DomainSnapshot {
+  return {
+    // Core Identity
+    domain,
+    timestamp,
+
+    // Registration Layer
+    registrar: "",
+    registrarIanaId: "",
+    registrantOrganization: "",
+    created: "",
+    expires: "",
+    lastUpdated: "",
+    status: [],
+    dnssec: false,
+
+    // DNS Layer
+    nameservers: [],
+    soa: null,
+    aRecords: [],
+    aaaaRecords: [],
+    cnameRecords: [],
+    mxRecords: [],
+    txtRecords: [],
+    srvRecords: [],
+
+    // Infrastructure Layer
+    ipAddresses: [],
+    asn: "",
+    asnName: "",
+    hostingProvider: "",
+    cdnDetected: false,
+    ipCountry: "",
+
+    // TLS / Security Layer
+    httpsReachable: false,
+    sslIssuer: "",
+    sslSubject: "",
+    sslSans: [],
+    sslValidFrom: "",
+    sslExpires: "",
+    sslFingerprint: "",
+    hstsEnabled: false,
+
+    // Email Security Layer
+    spfRecord: "",
+    dmarcRecord: "",
+    dkimSelectors: [],
+
+    // Internal Governance Metadata
+    internalOwner: "",
+    licensedTo: "",
+    notes: "",
+  };
+}
 
 async function ensureDataFile() {
   try {
@@ -81,51 +168,18 @@ export async function writeStore(store: DomainStore): Promise<void> {
 }
 
 /**
- * Validates that a snapshot has all required DomainSnapshot keys.
+ * Validates that a snapshot has all required DomainSnapshot keys per v0.0.4 schema.
  * Keys may have undefined values, but the keys themselves must exist.
+ * Uses canonical base to ensure completeness.
  */
 function validateSnapshot(snapshot: DomainSnapshot): DomainSnapshot {
-  const requiredKeys: (keyof DomainSnapshot)[] = [
-    "domain",
-    "timestamp",
-    "registrar",
-    "registrarIanaId",
-    "created",
-    "expires",
-    "lastUpdated",
-    "status",
-    "dnssec",
-    "nameservers",
-    "aRecords",
-    "mxRecords",
-    "txtRecords",
-    "soa",
-    "asn",
-    "hostingProvider",
-    "cdnDetected",
-    "sslIssuer",
-    "sslExpires",
-    "sslSans",
-    "sslFingerprint",
-    "httpsReachable",
-    "internalOwner",
-    "licensedTo",
-    "notes",
-  ];
+  const canonical = getCanonicalBase(snapshot.domain, snapshot.timestamp);
+  const validatedSnapshot: Partial<DomainSnapshot> = { ...canonical };
 
-  const validatedSnapshot: Partial<DomainSnapshot> = { ...snapshot };
-
-  // Ensure all keys exist, even if undefined
-  for (const key of requiredKeys) {
-    if (!(key in validatedSnapshot)) {
-      // Set appropriate default for missing keys
-      if (key === "status" || key === "nameservers" || key === "aRecords" || key === "mxRecords" || key === "txtRecords" || key === "sslSans") {
-        (validatedSnapshot as any)[key] = [];
-      } else if (key === "dnssec" || key === "cdnDetected" || key === "httpsReachable") {
-        (validatedSnapshot as any)[key] = false;
-      } else {
-        (validatedSnapshot as any)[key] = "";
-      }
+  // Merge in provided snapshot values, preserving all canonical keys
+  for (const key in snapshot) {
+    if (key in snapshot && (snapshot as any)[key] !== undefined) {
+      (validatedSnapshot as any)[key] = (snapshot as any)[key];
     }
   }
 
