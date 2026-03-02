@@ -45,9 +45,9 @@
     "finnoybu.com": {
       "lastSnapshot": {
         "domain": "finnoybu.com",
-        "timestamp": "2026-03-02T15:30:50.524Z",
-        "registrar": "",
-        "registrarIanaId": "",
+        "timestamp": "2026-03-02T15:59:19.337Z",
+        "registrar": "GoDaddy.com, LLC",
+        "registrarIanaId": "146",
         "registrantOrganization": "",
         "created": "2007-10-02T19:23:09Z",
         "expires": "2026-10-02T19:23:09Z",
@@ -74,28 +74,42 @@
         },
         "aRecords": [
           "185.199.110.153",
-          "185.199.109.153",
+          "185.199.111.153",
           "185.199.108.153",
-          "185.199.111.153"
+          "185.199.109.153"
         ],
-        "aaaaRecords": [],
+        "aaaaRecords": [
+          "2606:50c0:8003::153",
+          "2606:50c0:8000::153",
+          "2606:50c0:8001::153",
+          "2606:50c0:8002::153"
+        ],
         "cnameRecords": [],
         "mxRecords": [],
         "txtRecords": [],
         "srvRecords": [],
-        "ipAddresses": [],
+        "ipAddresses": [
+          "185.199.110.153",
+          "185.199.111.153",
+          "185.199.108.153",
+          "185.199.109.153",
+          "2606:50c0:8003::153",
+          "2606:50c0:8000::153",
+          "2606:50c0:8001::153",
+          "2606:50c0:8002::153"
+        ],
         "asn": "",
-        "asnName": "",
-        "hostingProvider": "",
+        "asnName": "US-GITHUB-20170413",
+        "hostingProvider": "US-GITHUB-20170413",
         "cdnDetected": false,
-        "ipCountry": "",
+        "ipCountry": "US",
         "httpsReachable": true,
         "sslIssuer": "Let's Encrypt",
-        "sslSubject": "",
+        "sslSubject": "finnoybu.com",
         "sslSans": [
           "DNS:finnoybu.com"
         ],
-        "sslValidFrom": "",
+        "sslValidFrom": "Jan  5 08:05:10 2026 GMT",
         "sslExpires": "Apr  5 08:05:09 2026 GMT",
         "sslFingerprint": "C4:E5:3D:36:C4:67:F4:0C:F5:F7:70:CC:9D:7E:26:70:ED:73:1A:E1:FA:DD:1F:48:36:48:C7:62:F4:5E:54:04",
         "hstsEnabled": false,
@@ -110,9 +124,9 @@
     "finnoybu.org": {
       "lastSnapshot": {
         "domain": "finnoybu.org",
-        "timestamp": "2026-03-02T14:47:56.187Z",
-        "registrar": "",
-        "registrarIanaId": "",
+        "timestamp": "2026-03-02T15:59:28.369Z",
+        "registrar": "NameCheap, Inc.",
+        "registrarIanaId": "1068",
         "registrantOrganization": "",
         "created": "2026-03-02T13:07:24.715Z",
         "expires": "2031-03-02T13:07:24.715Z",
@@ -141,11 +155,11 @@
         "aaaaRecords": [],
         "cnameRecords": [],
         "mxRecords": [
-          "15 eforward4.registrar-servers.com",
-          "20 eforward5.registrar-servers.com",
           "10 eforward1.registrar-servers.com",
           "10 eforward2.registrar-servers.com",
-          "10 eforward3.registrar-servers.com"
+          "10 eforward3.registrar-servers.com",
+          "15 eforward4.registrar-servers.com",
+          "20 eforward5.registrar-servers.com"
         ],
         "txtRecords": [
           "v=spf1 include:spf.efwd.registrar-servers.com ~all"
@@ -155,8 +169,8 @@
           "162.255.119.90"
         ],
         "asn": "",
-        "asnName": "",
-        "hostingProvider": "",
+        "asnName": "NCNET-5",
+        "hostingProvider": "NCNET-5",
         "cdnDetected": false,
         "ipCountry": "",
         "httpsReachable": false,
@@ -167,7 +181,7 @@
         "sslExpires": "",
         "sslFingerprint": "",
         "hstsEnabled": false,
-        "spfRecord": "",
+        "spfRecord": "v=spf1 include:spf.efwd.registrar-servers.com ~all",
         "dmarcRecord": "",
         "dkimSelectors": [],
         "internalOwner": "",
