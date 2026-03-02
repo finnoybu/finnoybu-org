@@ -1,0 +1,6 @@
+# CODEOWNERS - finnoybu-org
+# Canonical doctrine requires review
+/canon/ @finnoybu
+
+# Everything else
+* @finnoybu
