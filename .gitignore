@@ -37,6 +37,7 @@ yarn-error.log*
 data/domains.json
 data/snapshots/
 *.local.json
+ruleset.json
 
 # vercel
 .vercel
