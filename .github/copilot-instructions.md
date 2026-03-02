@@ -112,9 +112,40 @@ Delete a domain by sending action="delete" parameter.
 
 ✅ **v0.0.3 Backend Completion and Schema Enforcement - IMPLEMENTED**
 
+✅ **v0.1.0 Baseline Release - RELEASED** (no changes, confirmation only)
+
+✅ **v0.1.1 Snapshot History Engine - IMPLEMENTED**
+
+### v0.1.x Release Series
+
+**v0.1.0 (Baseline)**
+- Stable release confirming v0.0.3 feature set
+- No code changes from v0.0.3
+- Serves as foundation for v0.1.1+ features
+- Remains deployable and production-ready
+
+**v0.1.1 (Snapshot History Engine)**
+- Filesystem-based snapshot persistence: `data/snapshots/<domain>/<ISO_UTC>.json`
+- atomic write utility with temporary file + rename pattern
+- 2-snapshot retention policy per domain
+  - Maximum 2 snapshots retained after each write
+  - Oldest snapshots automatically deleted when limit exceeded
+- Auto-snapshot trigger on domain dropdown selection
+- Removed manual "Refresh Snapshot" button
+- New API endpoints:
+  - `GET /api/snapshot/latest?domain=<domain>` - Returns most recent snapshot
+  - `GET /api/history?domain=<domain>` - Returns all snapshots (max 2), newest first
+- Backward compatible with legacy `data/domains.json` store
+- Schema integrity preserved (v0.0.7 DomainSnapshot)
+- Validation: ✓ Build Success ✓ TypeScript Clean ✓ Lint Clean
+
+---
+
 The Finnoybu Domain Governance Snapshot Tool is now fully configured with:
 - A working Next.js 14 development environment
 - Local JSON-based domain and snapshot storage system
+- File-based snapshot history with atomic writes
+- 2-snapshot retention per domain with automatic cleanup
 - Extended API for RDAP, DNS, and SSL/TLS queries
 - Infrastructure detection (ASN, hosting provider, CDN detection)
 - Enhanced SSL data capture (SANs, fingerprints, HTTPS reachability)
@@ -122,7 +153,7 @@ The Finnoybu Domain Governance Snapshot Tool is now fully configured with:
 - WHOIS lookup for ASN and hosting provider information
 - Schema validation ensuring all fields are present
 - Canonical example.com boilerplate record
-- Single-page UI for managing domains
+- Single-page UI for managing domains with auto-snapshot
 - Server-side network queries only
 - Development server ready on localhost:3000
 - Production build capability
@@ -182,6 +213,42 @@ The DomainSnapshot interface now includes:
 - example.com record with all fields present and empty/default values
 - Anchors datastore schema for reference
 
-All implementation steps have been completed successfully. The application is ready for production deployment or further development.
+### Snapshot History Implementation (v0.1.1)
 
+**Persistence Layer**
+- `atomicWriteSnapshot()` - Writes snapshots with atomic rename
+- `listSnapshotsForDomain()` - Lists snapshots sorted newest first
+- `enforceSnapshotRetention()` - Maintains 2-snapshot limit
+- `persistSnapshot()` - Primary persistence API
+- `getLatestSnapshot()` - Query most recent snapshot
+- `getSnapshotHistory()` - Query all snapshots
 
+**Storage Strategy**
+- Snapshots persisted to: `data/snapshots/<domain>/YYYY-MM-DDTHH-mm-ssZ.json`
+- Timestamp format filesystem-safe (hyphens instead of colons)
+- Atomic writes via temporary file + rename prevent corruption
+- Legacy store (`data/domains.json`) maintained for compatibility
+- Both stores updated on snapshot creation
+
+**UI Integration**
+- Domain selection triggers auto-snapshot creation
+- Manual refresh button removed (auto-triggered)
+- Loading states preserved during async operations
+- Error handling for failed snapshot creation
+
+**API Specification**
+- GET /api/snapshot/latest?domain=<domain>
+  Response: Single DomainSnapshot object
+  Errors: 400 (missing domain), 404 (not found), 500 (server error)
+  
+- GET /api/history?domain=<domain>
+  Response: { domain, snapshots[] } - max 2 newest first
+  Errors: 400 (missing domain), 500 (server error)
+
+**Release Validation**
+- ✓ Build: Success
+- ✓ TypeScript: 0 errors
+- ✓ Lint: 0 errors, 0 warnings
+- ✓ Routes: /api/history, /api/snapshot, /api/snapshot/latest registered
+- ✓ Backward Compatibility: Legacy functions preserved
+- ✓ Schema Integrity: v0.0.7 model unchanged
