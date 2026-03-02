@@ -1,6 +1,6 @@
 # Finnoybu Domain Snapshot Tool
 
-A Next.js 14 application for capturing and managing domain governance snapshots. This tool queries RDAP, DNS, and TLS/SSL information for domains and stores timestamped snapshots locally.
+A Next.js 16 application for capturing and managing domain governance snapshots. The tool queries RDAP, DNS, and TLS/SSL information for domains and stores runtime snapshots locally.
 
 ## Features
 
@@ -8,15 +8,16 @@ A Next.js 14 application for capturing and managing domain governance snapshots.
 - **RDAP Queries** - Fetch registrar, registration dates, status, and nameservers
 - **DNS Lookups** - Resolve A, MX, TXT, and NS records using Node.js dns.promises
 - **SSL Certificate Info** - Extract issuer and expiration from TLS connections
-- **Local Storage** - All snapshots stored in local JSON file (no database required)
+- **Local Storage** - Runtime snapshots in `data/domains.json` (auto-created from template)
 - **Snapshot History** - Each domain stores its most recent snapshot with timestamp
+- **Extended Schema** - Canonical 66-field `DomainSnapshot` model (Level 1/2 active, Level 3 reserved)
 - **Minimal UI** - Simple, clean interface with no external styling frameworks
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24+
 - npm (or yarn/pnpm/bun)
 
 ### Installation
@@ -44,6 +45,16 @@ npm run dev
 
 ```
 finnoybu-org/
+├── .buildbook/
+│   ├── v0.0.x-buildbook.yaml      # Authoritative replay/buildbook document
+│   └── v0.0.x-buildbook.md        # Thin wrapper doc for the buildbook
+├── .github/
+│   ├── CODEOWNERS
+│   ├── branch_protection.json
+│   ├── branch_protection_basic.json
+│   ├── branch_protection_solo.json
+│   ├── branch_protection_update.json
+│   └── workflows/
 ├── src/
 │   ├── app/
 │   │   ├── api/
@@ -55,7 +66,10 @@ finnoybu-org/
 │   └── lib/
 │       └── storage.ts              # Local file storage functions
 ├── data/
-│   └── domains.json                # Local domain and snapshot storage
+│   ├── domains.sample.json         # Committed template seed
+│   ├── domains.json                # Runtime datastore (gitignored, auto-created)
+│   └── fixtures/
+│       └── synthetic.snapshot.json # Deterministic fixture for UI/testing
 ├── .env.local                      # Environment configuration
 ├── .gitignore
 ├── package.json
@@ -129,7 +143,13 @@ Delete a domain.
 
 ## Data Storage
 
-Domains and snapshots are stored in `data/domains.json`:
+Runtime domains and snapshots are stored in `data/domains.json`.
+
+- `data/domains.json` is runtime state and is intentionally gitignored
+- If missing, it is auto-created from `data/domains.sample.json`
+- `data/domains.sample.json` and `data/fixtures/synthetic.snapshot.json` are committed, deterministic references
+
+Runtime shape:
 
 ```json
 {
@@ -148,49 +168,22 @@ Domains and snapshots are stored in `data/domains.json`:
 
 ## Snapshot Data Model
 
-```typescript
-interface DomainSnapshot {
-  domain: string;
-  timestamp: string;
+The canonical snapshot model contains 66 fields across:
 
-  // Registration Layer
-  registrar?: string;
-  registrarIanaId?: string;
-  created?: string;
-  expires?: string;
-  lastUpdated?: string;
-  status?: string[];
-  dnssec?: boolean;
+- Core Identity
+- Registration (RDAP)
+- DNS
+- Infrastructure
+- TLS / Security
+- Email Security
+- Internal Governance Metadata
+- Level 3 (advanced audit/compliance and integrity fields)
 
-  // DNS Layer
-  nameservers?: string[];
-  aRecords?: string[];
-  mxRecords?: string[];
-  txtRecords?: string[];
-  soa?: string;
-
-  // Infrastructure Layer
-  asn?: string;
-  hostingProvider?: string;
-  cdnDetected?: boolean;
-
-  // Security Layer
-  sslIssuer?: string;
-  sslExpires?: string;
-  sslSans?: string[];
-  sslFingerprint?: string;
-  httpsReachable?: boolean;
-
-  // Optional Internal Governance Metadata
-  internalOwner?: string;
-  licensedTo?: string;
-  notes?: string;
-}
-```
+Source of truth: `src/lib/storage.ts` (`DomainSnapshot`, `getCanonicalBase()`).
 
 ## Technology Stack
 
-- **Framework:** Next.js 14 (App Router)
+- **Framework:** Next.js 16 (App Router)
 - **Language:** TypeScript
 - **Storage:** Local JSON files
 - **DNS:** Node.js `dns.promises` module
@@ -203,6 +196,7 @@ interface DomainSnapshot {
 - Network queries (RDAP, DNS, SSL) are performed server-side only
 - Partial failures are allowed - snapshots will contain available data
 - All network requests have timeouts to prevent hanging
+- Live network snapshot checks are manual validation (not part of CI)
 - No authentication or authorization implemented
 - No external paid APIs required
 

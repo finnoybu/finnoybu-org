@@ -114,6 +114,7 @@ interface DomainStore {
 }
 
 const DATA_FILE = path.join(process.cwd(), "data", "domains.json");
+const SAMPLE_FILE = path.join(process.cwd(), "data", "domains.sample.json");
 
 /**
  * Returns a canonical base DomainSnapshot with all fields present (v0.0.7 schema).
@@ -222,9 +223,17 @@ async function ensureDataFile() {
   try {
     await fs.access(DATA_FILE);
   } catch {
-    const defaultStore: DomainStore = { domains: {} };
+    // Runtime datastore does not exist; initialize from sample template
     await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-    await fs.writeFile(DATA_FILE, JSON.stringify(defaultStore, null, 2), "utf-8");
+    try {
+      // Attempt to copy from sample template
+      const sampleData = await fs.readFile(SAMPLE_FILE, "utf-8");
+      await fs.writeFile(DATA_FILE, sampleData, "utf-8");
+    } catch {
+      // Fallback: create empty store if sample doesn't exist
+      const defaultStore: DomainStore = { domains: {} };
+      await fs.writeFile(DATA_FILE, JSON.stringify(defaultStore, null, 2), "utf-8");
+    }
   }
 }
 

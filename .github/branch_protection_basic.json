@@ -1,0 +1,14 @@
+{
+  "enforce_admins": true,
+  "allow_rebase_merge": false,
+  "allow_squash_merge": true,
+  "allow_merge_commit": false,
+  "allow_deletions": false,
+  "restrictions": null,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 0,
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": true
+  },
+  "allow_force_pushes": false
+}
