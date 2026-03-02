@@ -65,9 +65,12 @@ export default function Home() {
     }
   }
 
-  async function handleRefreshSnapshot() {
-    if (!selectedDomain) return;
+  async function handleDomainSelect(domain: string) {
+    setSelectedDomain(domain);
+    
+    if (!domain) return;
 
+    // Auto-snapshot on domain select
     setLoading(true);
     setError("");
 
@@ -75,11 +78,11 @@ export default function Home() {
       const response = await fetch("/api/snapshot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: selectedDomain }),
+        body: JSON.stringify({ domain }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to refresh snapshot");
+        throw new Error("Failed to create snapshot");
       }
 
       await loadDomains();
@@ -158,7 +161,7 @@ export default function Home() {
         >
           <select
             value={selectedDomain}
-            onChange={(e) => setSelectedDomain(e.target.value)}
+            onChange={(e) => handleDomainSelect(e.target.value)}
             style={{
               padding: "0.5rem",
               border: "1px solid #ddd",
@@ -192,22 +195,6 @@ export default function Home() {
             disabled={addingDomain}
           >
             Add Domain
-          </button>
-
-          <button
-            onClick={handleRefreshSnapshot}
-            style={{
-              padding: "0.5rem 1rem",
-              backgroundColor: "#007bff",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "0.95rem",
-            }}
-            disabled={!selectedDomain || loading}
-          >
-            Refresh Snapshot
           </button>
 
           <button

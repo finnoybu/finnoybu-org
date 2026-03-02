@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
 
 export interface DomainSOA {
   primaryNs: string;
@@ -312,4 +313,160 @@ export async function getDomains(): Promise<string[]> {
 export async function getDomainSnapshot(domain: string): Promise<DomainSnapshot | null> {
   const store = await readStore();
   return store.domains[domain]?.lastSnapshot || null;
+}
+
+// ============================================================================
+// v0.1.1 Snapshot History & Persistence Engine
+// ============================================================================
+
+const SNAPSHOTS_DIR = path.join(process.cwd(), "data", "snapshots");
+
+/**
+ * Converts ISO timestamp to filesystem-safe format: YYYY-MM-DDTHH-mm-ssZ
+ * Uses hyphens instead of colons in time portion for filesystem compatibility.
+ */
+function timestampToFilename(timestamp: string): string {
+  // Convert ISO 8601 (2026-03-02T14:30:45.123Z) to (2026-03-02T14-30-45Z)
+  return timestamp.replace(/(\d{2}):(\d{2})/, "$1-$2").split(".")[0] + "Z";
+}
+
+/**
+ * Writes snapshot to disk with atomic rename (write to temp file, then rename).
+ * Ensures file is fully written before being visible.
+ */
+async function atomicWriteSnapshot(domain: string, snapshot: DomainSnapshot): Promise<string> {
+  const domainDir = path.join(SNAPSHOTS_DIR, domain);
+  
+  // Ensure domain snapshot directory exists
+  await fs.mkdir(domainDir, { recursive: true });
+
+  const filename = timestampToFilename(snapshot.timestamp);
+  const filepath = path.join(domainDir, `${filename}.json`);
+  
+  // Write to temporary file first
+  const tempfile = path.join(
+    os.tmpdir(),
+    `snapshot-${domain}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.json`
+  );
+
+  try {
+    // Write to temp file
+    await fs.writeFile(tempfile, JSON.stringify(snapshot, null, 2), "utf-8");
+    
+    // Atomic rename
+    await fs.rename(tempfile, filepath);
+    
+    return filepath;
+  } catch (error) {
+    // Clean up temp file if rename failed
+    try {
+      await fs.unlink(tempfile);
+    } catch {
+      // Ignore cleanup errors
+    }
+    throw error;
+  }
+}
+
+/**
+ * Lists snapshots for a domain, sorted by timestamp (newest first).
+ */
+async function listSnapshotsForDomain(domain: string): Promise<DomainSnapshot[]> {
+  const domainDir = path.join(SNAPSHOTS_DIR, domain);
+  
+  try {
+    await fs.mkdir(domainDir, { recursive: true });
+    const files = await fs.readdir(domainDir);
+    
+    // Filter JSON files and sort by modification time (newest first)
+    const jsonFiles = files.filter((f) => f.endsWith(".json"));
+    const snapshots: DomainSnapshot[] = [];
+
+    for (const file of jsonFiles) {
+      try {
+        const filepath = path.join(domainDir, file);
+        const content = await fs.readFile(filepath, "utf-8");
+        const snapshot = JSON.parse(content) as DomainSnapshot;
+        snapshots.push(snapshot);
+      } catch (error) {
+        console.error(`Error reading snapshot file ${file}:`, error);
+      }
+    }
+
+    // Sort by timestamp, newest first
+    snapshots.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    return snapshots;
+  } catch (error) {
+    console.error(`Error listing snapshots for ${domain}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Enforces 2-snapshot retention policy: keeps only the 2 most recent snapshots.
+ * Deletes older snapshots if count exceeds 2.
+ */
+async function enforceSnapshotRetention(domain: string): Promise<void> {
+  const domainDir = path.join(SNAPSHOTS_DIR, domain);
+  
+  try {
+    const files = await fs.readdir(domainDir);
+    const jsonFiles = files.filter((f) => f.endsWith(".json")).sort();
+
+    // If more than 2 snapshots exist, delete the oldest ones
+    if (jsonFiles.length > 2) {
+      const filesToDelete = jsonFiles.slice(0, jsonFiles.length - 2);
+      
+      for (const file of filesToDelete) {
+        const filepath = path.join(domainDir, file);
+        await fs.unlink(filepath);
+      }
+    }
+  } catch (error) {
+    console.error(`Error enforcing retention for ${domain}:`, error);
+  }
+}
+
+/**
+ * Persists a snapshot: writes to disk, enforces retention, and updates store.
+ * Returns the filepath of the written snapshot.
+ */
+export async function persistSnapshot(domain: string, snapshot: DomainSnapshot): Promise<string> {
+  const validatedSnapshot = validateSnapshot(snapshot);
+  
+  // Write to disk with atomic rename
+  const filepath = await atomicWriteSnapshot(domain, validatedSnapshot);
+  
+  // Enforce retention policy (keep max 2 snapshots)
+  await enforceSnapshotRetention(domain);
+  
+  // Also update the legacy store for backward compatibility
+  const store = await readStore();
+  store.domains[domain] = { lastSnapshot: validatedSnapshot };
+  await writeStore(store);
+  
+  return filepath;
+}
+
+/**
+ * Gets the most recent snapshot for a domain from disk.
+ * Falls back to legacy store if not found in filesystem.
+ */
+export async function getLatestSnapshot(domain: string): Promise<DomainSnapshot | null> {
+  const snapshots = await listSnapshotsForDomain(domain);
+  
+  if (snapshots.length > 0) {
+    return snapshots[0]; // Already sorted newest first
+  }
+  
+  // Fallback to legacy store
+  return getDomainSnapshot(domain);
+}
+
+/**
+ * Gets all snapshots for a domain (max 2), sorted newest first.
+ */
+export async function getSnapshotHistory(domain: string): Promise<DomainSnapshot[]> {
+  return listSnapshotsForDomain(domain);
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as dns } from "dns";
 import tls from "tls";
-import { DomainSnapshot, getCanonicalBase, addDomain, updateDomain, getDomains } from "@/lib/storage";
+import { DomainSnapshot, getCanonicalBase, persistSnapshot } from "@/lib/storage";
 
 interface ExtendedPeerCertificate extends tls.PeerCertificate {
   subjectaltname?: string;
@@ -464,15 +464,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: "Domain deleted" });
     }
 
-    // Default action: create/update snapshot
+    // Default action: create/update snapshot and persist to disk
     const snapshot = await createSnapshot(normalizedDomain);
-
-    const domains = await getDomains();
-    if (domains.includes(normalizedDomain)) {
-      await updateDomain(normalizedDomain, snapshot);
-    } else {
-      await addDomain(normalizedDomain, snapshot);
-    }
+    await persistSnapshot(normalizedDomain, snapshot);
 
     return NextResponse.json(snapshot, { status: 201 });
   } catch (error) {
