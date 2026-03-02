@@ -327,7 +327,8 @@ const SNAPSHOTS_DIR = path.join(process.cwd(), "data", "snapshots");
  */
 function timestampToFilename(timestamp: string): string {
   // Convert ISO 8601 (2026-03-02T14:30:45.123Z) to (2026-03-02T14-30-45Z)
-  return timestamp.replace(/(\d{2}):(\d{2})/, "$1-$2").split(".")[0] + "Z";
+  // Remove milliseconds, then replace all colons with hyphens in the time portion
+  return timestamp.split(".")[0].replace(/:/g, "-") + "Z";
 }
 
 /**
