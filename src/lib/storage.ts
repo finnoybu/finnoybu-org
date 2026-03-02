@@ -470,3 +470,116 @@ export async function getLatestSnapshot(domain: string): Promise<DomainSnapshot 
 export async function getSnapshotHistory(domain: string): Promise<DomainSnapshot[]> {
   return listSnapshotsForDomain(domain);
 }
+
+// ============================================================================
+// v0.1.2 Deterministic Diff Engine
+// ============================================================================
+
+export interface DiffEntry {
+  path: string;
+  from: unknown;
+  to: unknown;
+}
+
+/**
+ * Recursively compares two objects and returns a flat list of changes.
+ * Ignores the 'timestamp' field.
+ * Sorts object keys before comparing for deterministic output.
+ * Normalizes arrays before comparing (by value, not index).
+ */
+function createDiff(
+  previous: unknown,
+  latest: unknown,
+  prefix = "",
+  ignoreFields = new Set(["timestamp"])
+): DiffEntry[] {
+  const diffs: DiffEntry[] = [];
+
+  // Handle null/undefined
+  if (previous === null || previous === undefined || latest === null || latest === undefined) {
+    if (previous !== latest) {
+      diffs.push({ path: prefix || "root", from: previous, to: latest });
+    }
+    return diffs;
+  }
+
+  // Handle arrays: normalize and compare by value
+  if (Array.isArray(previous) && Array.isArray(latest)) {
+    const prevSorted = JSON.parse(JSON.stringify(previous)).sort((a: unknown, b: unknown) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b))
+    );
+    const latestSorted = JSON.parse(JSON.stringify(latest)).sort((a: unknown, b: unknown) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b))
+    );
+
+    // Compare sorted arrays
+    if (JSON.stringify(prevSorted) !== JSON.stringify(latestSorted)) {
+      diffs.push({ path: prefix, from: prevSorted, to: latestSorted });
+    }
+    return diffs;
+  }
+
+  // Handle objects: sort keys before comparing
+  if (typeof previous === "object" && typeof latest === "object") {
+    const prevKeys = Object.keys(previous as Record<string, unknown>).sort();
+    const latestKeys = Object.keys(latest as Record<string, unknown>).sort();
+
+    // Get union of all keys
+    const allKeys = new Set([...prevKeys, ...latestKeys]);
+
+    for (const key of Array.from(allKeys).sort()) {
+      // Skip ignored fields
+      if (ignoreFields.has(key)) {
+        continue;
+      }
+
+      const prevVal = (previous as Record<string, unknown>)[key];
+      const latestVal = (latest as Record<string, unknown>)[key];
+
+      const newPrefix = prefix ? `${prefix}.${key}` : key;
+
+      // Recursively compare nested structures
+      if (typeof prevVal === "object" && typeof latestVal === "object") {
+        diffs.push(...createDiff(prevVal, latestVal, newPrefix, ignoreFields));
+      } else if (prevVal !== latestVal) {
+        diffs.push({ path: newPrefix, from: prevVal, to: latestVal });
+      }
+    }
+
+    return diffs;
+  }
+
+  // Handle primitives
+  if (previous !== latest) {
+    diffs.push({ path: prefix, from: previous, to: latest });
+  }
+
+  return diffs;
+}
+
+/**
+ * Computes the deterministic diff between latest and previous snapshots for a domain.
+ * Returns empty array if fewer than 2 snapshots exist.
+ * Output is sorted by path (deterministic).
+ */
+export async function getDomainDiff(domain: string): Promise<DiffEntry[]> {
+  const snapshots = await getSnapshotHistory(domain);
+
+  // Need at least 2 snapshots to compute a diff
+  if (snapshots.length < 2) {
+    return [];
+  }
+
+  // snapshots are sorted newest first, so:
+  // snapshots[0] = latest
+  // snapshots[1] = previous
+  const latest = snapshots[0];
+  const previous = snapshots[1];
+
+  const diffs = createDiff(previous, latest);
+
+  // Sort by path for deterministic output
+  diffs.sort((a, b) => a.path.localeCompare(b.path));
+
+  return diffs;
+}
