@@ -65,8 +65,8 @@ export interface DomainSnapshot {
   notes?: string;
 
   // Level 3: Advanced Registration / RDAP
-  rdapEntities?: any[];
-  rdapRaw?: any;
+  rdapEntities?: Record<string, unknown>[];
+  rdapRaw?: Record<string, unknown> | null;
   registrantContactEmail?: string;
   registrantCountry?: string;
   registryOperator?: string;
@@ -101,7 +101,7 @@ export interface DomainSnapshot {
   // Level 3: Snapshot Integrity / Monitoring
   snapshotHash?: string;
   previousSnapshotHash?: string;
-  changeSummary?: any[];
+  changeSummary?: Array<Record<string, unknown>>;
   riskScore?: number;
 }
 

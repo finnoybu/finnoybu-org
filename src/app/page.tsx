@@ -317,7 +317,7 @@ export default function Home() {
         )}
 
         {!selectedSnapshot && selectedDomain && (
-          <p style={{ color: "#666" }}>No snapshot data available. Click "Refresh Snapshot" to fetch.</p>
+          <p style={{ color: "#666" }}>No snapshot data available. Click &quot;Refresh Snapshot&quot; to fetch.</p>
         )}
 
         {!selectedDomain && domains.length > 0 && (
@@ -326,7 +326,7 @@ export default function Home() {
 
         {domains.length === 0 && (
           <p style={{ color: "#666", fontSize: "1.1rem" }}>
-            No domains yet. Click "Add Domain" to get started.
+            No domains yet. Click &quot;Add Domain&quot; to get started.
           </p>
         )}
       </main>
