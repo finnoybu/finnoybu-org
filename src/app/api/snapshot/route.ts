@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as dns } from "dns";
 import tls from "tls";
+import net from "net";
 import { DomainSnapshot, addDomain, updateDomain, getDomains } from "@/lib/storage";
 
 interface ExtendedPeerCertificate extends tls.PeerCertificate {
@@ -11,9 +12,16 @@ interface RdapResponse {
   handle?: string;
   port43?: string;
   ldhName?: string;
+  secureDNS?: {
+    delegationSigned?: boolean;
+  };
   entities?: Array<{
     objectClassName: string;
     handle?: string;
+    publicIds?: Array<{
+      type: string;
+      identifier: string;
+    }>;
     vcardArray?: Array<unknown>;
   }>;
   nameservers?: Array<{ ldhName?: string }>;
@@ -43,17 +51,27 @@ async function fetchRdapData(domain: string): Promise<Partial<DomainSnapshot>> {
           if (
             entity.objectClassName === "entity" &&
             entity.handle &&
-            entity.handle.includes("registrar")
+            entity.handle.toLowerCase().includes("registrar")
           ) {
             result.registrar = entity.handle;
-            // Try to extract IANA ID from handle (e.g., "registrar_12345" -> "12345")
-            const ianaMatch = entity.handle.match(/registrar[_-]?(\d+)/i);
-            if (ianaMatch && ianaMatch[1]) {
-              result.registrarIanaId = ianaMatch[1];
+            
+            // Extract IANA ID from publicIds array
+            if (entity.publicIds) {
+              for (const publicId of entity.publicIds) {
+                if (publicId.type === "IANA Registrar ID") {
+                  result.registrarIanaId = publicId.identifier;
+                  break;
+                }
+              }
             }
             break;
           }
         }
+      }
+
+      // Extract DNSSEC status from RDAP
+      if (data.secureDNS?.delegationSigned !== undefined) {
+        result.dnssec = data.secureDNS.delegationSigned;
       }
 
       // Extract nameservers
@@ -133,6 +151,16 @@ async function fetchDnsData(domain: string): Promise<Partial<DomainSnapshot>> {
         // Silent fail
       }
     }
+
+    // Check DNSSEC via DS records if not already set from RDAP
+    if (result.dnssec === undefined) {
+      try {
+        await dns.resolve(domain, "DS");
+        result.dnssec = true;
+      } catch {
+        result.dnssec = false;
+      }
+    }
   } catch (error) {
     console.error(`DNS fetch error for ${domain}:`, error);
   }
@@ -184,8 +212,10 @@ async function fetchSslData(domain: string): Promise<Partial<DomainSnapshot>> {
       result.sslSans = sanArray;
     }
 
-    // Extract certificate fingerprint
-    if (certificate.fingerprint) {
+    // Extract certificate fingerprint (prefer SHA256)
+    if (certificate.fingerprint256) {
+      result.sslFingerprint = certificate.fingerprint256;
+    } else if (certificate.fingerprint) {
       result.sslFingerprint = certificate.fingerprint;
     }
   } catch (error) {
@@ -194,6 +224,51 @@ async function fetchSslData(domain: string): Promise<Partial<DomainSnapshot>> {
   }
 
   return result;
+}
+
+async function fetchWhoisData(ip: string): Promise<{ asn?: string; hostingProvider?: string }> {
+  return new Promise((resolve) => {
+    const whoisServer = "whois.iana.org";
+    const socket = new net.Socket();
+    let data = "";
+
+    socket.setTimeout(5000);
+
+    socket.on("data", (chunk) => {
+      data += chunk.toString();
+    });
+
+    socket.on("close", () => {
+      const result: { asn?: string; hostingProvider?: string } = {};
+
+      // Parse ASN from "origin:" or "OriginAS:" lines
+      const asnMatch = data.match(/(?:origin|OriginAS):\s*(?:AS)?(\d+)/i);
+      if (asnMatch && asnMatch[1]) {
+        result.asn = `AS${asnMatch[1]}`;
+      }
+
+      // Parse organization name from "OrgName:" or "org-name:" lines
+      const orgMatch = data.match(/(?:OrgName|org-name):\s*(.+)/i);
+      if (orgMatch && orgMatch[1]) {
+        result.hostingProvider = orgMatch[1].trim();
+      }
+
+      resolve(result);
+    });
+
+    socket.on("timeout", () => {
+      socket.destroy();
+      resolve({});
+    });
+
+    socket.on("error", () => {
+      resolve({});
+    });
+
+    socket.connect(43, whoisServer, () => {
+      socket.write(`${ip}\r\n`);
+    });
+  });
 }
 
 async function fetchInfrastructureData(domain: string): Promise<Partial<DomainSnapshot>> {
@@ -211,46 +286,60 @@ async function fetchInfrastructureData(domain: string): Promise<Partial<DomainSn
     if (aRecords.length > 0) {
       const ip = aRecords[0];
 
-      // Try to detect ASN and hosting provider using public IP lookup
-      // This is a simplified approach - would normally use whois or specific ASN APIs
+      // Try WHOIS lookup for ASN and hosting provider
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-        const response = await fetch(`https://ipwho.is/${ip}`, {
-          signal: controller.signal,
-        }).catch(() => null);
-
-        clearTimeout(timeoutId);
-
-        if (response && response.ok) {
-          const data = await response.json();
-
-          if (data.asn) {
-            result.asn = data.asn;
-          }
-
-          if (data.isp) {
-            result.hostingProvider = data.isp;
-          }
-
-          // Detect CDN based on common CDN ISPs
-          const cdnProviders = [
-            "cloudflare",
-            "akamai",
-            "fastly",
-            "cloudfront",
-            "stackpath",
-            "cachefly",
-            "bunnycdn",
-            "incapsula",
-          ];
-          const isp = (data.isp || "").toLowerCase();
-          result.cdnDetected = cdnProviders.some((cdn) => isp.includes(cdn));
+        const whoisData = await fetchWhoisData(ip);
+        if (whoisData.asn) {
+          result.asn = whoisData.asn;
+        }
+        if (whoisData.hostingProvider) {
+          result.hostingProvider = whoisData.hostingProvider;
         }
       } catch (error) {
-        console.error(`Infrastructure lookup error:`, error);
+        console.error(`WHOIS lookup error:`, error);
       }
+
+      // Fallback to ipwho.is if WHOIS didn't provide data
+      if (!result.asn || !result.hostingProvider) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+          const response = await fetch(`https://ipwho.is/${ip}`, {
+            signal: controller.signal,
+          }).catch(() => null);
+
+          clearTimeout(timeoutId);
+
+          if (response && response.ok) {
+            const data = await response.json();
+
+            if (data.asn && !result.asn) {
+              result.asn = data.asn;
+            }
+
+            if (data.isp && !result.hostingProvider) {
+              result.hostingProvider = data.isp;
+            }
+          }
+        } catch (error) {
+          console.error(`Infrastructure lookup error:`, error);
+        }
+      }
+
+      // Detect CDN based on common CDN ISPs
+      const cdnProviders = [
+        "cloudflare",
+        "akamai",
+        "fastly",
+        "cloudfront",
+        "stackpath",
+        "cachefly",
+        "bunnycdn",
+        "incapsula",
+      ];
+      const hostingProviderLower = (result.hostingProvider || "").toLowerCase();
+      result.cdnDetected = cdnProviders.some((cdn) => hostingProviderLower.includes(cdn));
     }
   } catch (error) {
     console.error(`Infrastructure fetch error for ${domain}:`, error);

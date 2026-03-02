@@ -80,16 +80,70 @@ export async function writeStore(store: DomainStore): Promise<void> {
   }
 }
 
+/**
+ * Validates that a snapshot has all required DomainSnapshot keys.
+ * Keys may have undefined values, but the keys themselves must exist.
+ */
+function validateSnapshot(snapshot: DomainSnapshot): DomainSnapshot {
+  const requiredKeys: (keyof DomainSnapshot)[] = [
+    "domain",
+    "timestamp",
+    "registrar",
+    "registrarIanaId",
+    "created",
+    "expires",
+    "lastUpdated",
+    "status",
+    "dnssec",
+    "nameservers",
+    "aRecords",
+    "mxRecords",
+    "txtRecords",
+    "soa",
+    "asn",
+    "hostingProvider",
+    "cdnDetected",
+    "sslIssuer",
+    "sslExpires",
+    "sslSans",
+    "sslFingerprint",
+    "httpsReachable",
+    "internalOwner",
+    "licensedTo",
+    "notes",
+  ];
+
+  const validatedSnapshot: Partial<DomainSnapshot> = { ...snapshot };
+
+  // Ensure all keys exist, even if undefined
+  for (const key of requiredKeys) {
+    if (!(key in validatedSnapshot)) {
+      // Set appropriate default for missing keys
+      if (key === "status" || key === "nameservers" || key === "aRecords" || key === "mxRecords" || key === "txtRecords" || key === "sslSans") {
+        (validatedSnapshot as any)[key] = [];
+      } else if (key === "dnssec" || key === "cdnDetected" || key === "httpsReachable") {
+        (validatedSnapshot as any)[key] = false;
+      } else {
+        (validatedSnapshot as any)[key] = "";
+      }
+    }
+  }
+
+  return validatedSnapshot as DomainSnapshot;
+}
+
 export async function addDomain(domain: string, snapshot: DomainSnapshot): Promise<void> {
+  const validatedSnapshot = validateSnapshot(snapshot);
   const store = await readStore();
-  store.domains[domain] = { lastSnapshot: snapshot };
+  store.domains[domain] = { lastSnapshot: validatedSnapshot };
   await writeStore(store);
 }
 
 export async function updateDomain(domain: string, snapshot: DomainSnapshot): Promise<void> {
+  const validatedSnapshot = validateSnapshot(snapshot);
   const store = await readStore();
   if (store.domains[domain]) {
-    store.domains[domain].lastSnapshot = snapshot;
+    store.domains[domain].lastSnapshot = validatedSnapshot;
     await writeStore(store);
   }
 }
