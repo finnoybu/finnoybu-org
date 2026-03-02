@@ -583,3 +583,108 @@ export async function getDomainDiff(domain: string): Promise<DiffEntry[]> {
 
   return diffs;
 }
+
+// ============================================================================
+// v0.1.3 Stability Classification Engine
+// ============================================================================
+
+export interface StatusSignal {
+  rule: string;
+  path: string;
+}
+
+export interface StatusResult {
+  status: "stable" | "drift" | "risk";
+  signals: StatusSignal[];
+}
+
+/**
+ * Applies deterministic classification rules to a list of diffs.
+ * Returns status and list of triggered signals.
+ *
+ * Rules:
+ * - risk: registrar_change, nameserver_change, mx_change, spf_removed, dmarc_removed, asn_change
+ * - drift: tls_expiration_changed, soa_serial_change
+ * - stable: no_changes_detected
+ *
+ * Priority: risk > drift > stable
+ */
+export function applyClassificationRules(diffs: DiffEntry[]): StatusResult {
+  const signals: StatusSignal[] = [];
+  let riskDetected = false;
+  let driftDetected = false;
+
+  // No diffs means stable
+  if (diffs.length === 0) {
+    return {
+      status: "stable",
+      signals: [{ rule: "no_changes_detected", path: "" }],
+    };
+  }
+
+  // Evaluate each diff against classification rules
+  for (const diff of diffs) {
+    const path = diff.path.toLowerCase();
+
+    // RISK RULES
+    if (path === "registrar") {
+      signals.push({ rule: "registrar_change", path: diff.path });
+      riskDetected = true;
+    } else if (path === "nameservers") {
+      signals.push({ rule: "nameserver_change", path: diff.path });
+      riskDetected = true;
+    } else if (path === "mxrecords") {
+      signals.push({ rule: "mx_change", path: diff.path });
+      riskDetected = true;
+    } else if (path === "spfrecord") {
+      // SPF removed if from has value and to is empty
+      if (diff.from && !diff.to) {
+        signals.push({ rule: "spf_removed", path: diff.path });
+        riskDetected = true;
+      }
+    } else if (path === "dmarcrecord") {
+      // DMARC removed if from has value and to is empty
+      if (diff.from && !diff.to) {
+        signals.push({ rule: "dmarc_removed", path: diff.path });
+        riskDetected = true;
+      }
+    } else if (path === "asn") {
+      signals.push({ rule: "asn_change", path: diff.path });
+      riskDetected = true;
+    }
+    // DRIFT RULES
+    else if (path === "sslexpires") {
+      signals.push({ rule: "tls_expiration_changed", path: diff.path });
+      driftDetected = true;
+    } else if (path === "soa.serial") {
+      signals.push({ rule: "soa_serial_change", path: diff.path });
+      driftDetected = true;
+    }
+  }
+
+  // Determine final status based on priority: risk > drift > stable
+  const status: StatusResult["status"] = riskDetected ? "risk" : driftDetected ? "drift" : "stable";
+
+  return {
+    status,
+    signals,
+  };
+}
+
+/**
+ * Gets the stability status for a domain by computing the diff and applying classification rules.
+ * Returns stable status if fewer than 2 snapshots exist.
+ */
+export async function getDomainStatus(domain: string): Promise<StatusResult> {
+  try {
+    const diffs = await getDomainDiff(domain);
+    return applyClassificationRules(diffs);
+  } catch (error) {
+    console.error(`Error computing status for ${domain}:`, error);
+    // Return stable on error
+    return {
+      status: "stable",
+      signals: [{ rule: "error_fallback", path: "" }],
+    };
+  }
+}
