@@ -1,5 +1,24 @@
 # Git Workflow for Finnoybu-Org
 
+## Initial GitHub Setup (One-time)
+
+If remote repository is not yet configured:
+
+```bash
+# Check if remote exists
+git remote -v
+
+# If no output, add GitHub remote
+git remote add origin https://github.com/YOUR_USERNAME/finnoybu-org.git
+
+# Verify remote was added
+git remote -v
+
+# Push initial commit and tags to GitHub
+git push -u origin main
+git push origin --tags
+```
+
 ## Branching Strategy
 
 ### Branch Naming Convention
@@ -15,7 +34,7 @@
 1. **Create Feature Branch BEFORE Starting Work**
    ```bash
    git checkout main
-   git pull origin main
+   git pull origin main  # Only if remote is configured
    git checkout -b feature/vX.X.X-feature-description
    ```
 
@@ -35,25 +54,32 @@
    - Detailed change 3"
    ```
 
-4. **Merge to Main**
+4. **Push Feature Branch to GitHub** (BEFORE merging)
+   ```bash
+   git push origin feature/vX.X.X-feature-description
+   ```
+
+5. **Merge to Main**
    ```bash
    git checkout main
    git merge feature/vX.X.X-feature-description --no-ff
    ```
 
-5. **Tag Release**
+6. **Tag Release**
    ```bash
    git tag -a vX.X.X -m "vX.X.X - Feature description"
    ```
 
-6. **Push to Remote** (when ready)
+7. **Push Main and Tags to GitHub**
    ```bash
-   git push origin main --tags
+   git push origin main
+   git push origin --tags
    ```
 
-7. **Clean Up Feature Branch** (optional)
+8. **Clean Up Feature Branch** (optional - after confirming merge)
    ```bash
    git branch -d feature/vX.X.X-feature-description
+   git push origin --delete feature/vX.X.X-feature-description
    ```
 
 ## Commit Message Format
@@ -103,13 +129,21 @@ Going forward, we will maintain strict separation between versions.
 Starting with the next instruction set, we will:
 1. Create a dedicated feature branch **before** any work begins
 2. Commit only changes relevant to that specific instruction set
-3. Merge and tag immediately after completion
-4. Start fresh branch for next instruction set
+3. **Push feature branch to GitHub before merging** (for backup and visibility)
+4. Merge to main with `--no-ff` (preserves feature branch history)
+5. Tag the release version
+6. **Push main and tags to GitHub immediately after merge**
+7. Delete feature branch locally and remotely (optional cleanup)
 
-This ensures clear version history and easy rollback if needed.
+This ensures:
+- Clear version history and easy rollback if needed
+- Remote backup of all feature branches before merging
+- Visibility of work-in-progress on GitHub
+- Clean merge history with feature branch context
 
 ---
 
 **Last Updated:** 2026-03-02
 **Current Version:** v0.0.2
 **Current Branch:** main
+**Remote Status:** Not configured (local-only repository)
