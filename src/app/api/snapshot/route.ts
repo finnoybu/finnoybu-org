@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as dns } from "dns";
 import tls from "tls";
 import net from "net";
-import { DomainSnapshot, addDomain, updateDomain, getDomains } from "@/lib/storage";
+import { DomainSnapshot, getCanonicalBase, addDomain, updateDomain, getDomains } from "@/lib/storage";
 
 interface ExtendedPeerCertificate extends tls.PeerCertificate {
   subjectaltname?: string;
@@ -137,7 +137,15 @@ async function fetchDnsData(domain: string): Promise<Partial<DomainSnapshot>> {
     try {
       const soaRecords = await dns.resolveSoa(domain);
       if (soaRecords) {
-        result.soa = `${soaRecords.nsname} ${soaRecords.hostmaster} ${soaRecords.serial} ${soaRecords.refresh} ${soaRecords.retry} ${soaRecords.expire} ${soaRecords.minttl}`;
+        result.soa = {
+          primaryNs: soaRecords.nsname,
+          hostmaster: soaRecords.hostmaster,
+          serial: soaRecords.serial,
+          refresh: soaRecords.refresh,
+          retry: soaRecords.retry,
+          expire: soaRecords.expire,
+          minimum: soaRecords.minttl,
+        };
       }
     } catch {
       // Silent fail
@@ -351,6 +359,9 @@ async function fetchInfrastructureData(domain: string): Promise<Partial<DomainSn
 async function createSnapshot(domain: string): Promise<DomainSnapshot> {
   const timestamp = new Date().toISOString();
 
+  // Start from canonical base with all fields present
+  const snapshot = getCanonicalBase(domain, timestamp);
+
   // Fetch data from all sources in parallel
   const [rdapData, dnsData, sslData, infrastructureData] = await Promise.all([
     fetchRdapData(domain),
@@ -359,15 +370,8 @@ async function createSnapshot(domain: string): Promise<DomainSnapshot> {
     fetchInfrastructureData(domain),
   ]);
 
-  // Merge all data
-  const snapshot: DomainSnapshot = {
-    domain,
-    timestamp,
-    ...rdapData,
-    ...dnsData,
-    ...sslData,
-    ...infrastructureData,
-  };
+  // Merge all fetched data into canonical base
+  Object.assign(snapshot, rdapData, dnsData, sslData, infrastructureData);
 
   return snapshot;
 }
