@@ -1,6 +1,5 @@
 import fs from "fs/promises";
 import path from "path";
-import os from "os";
 
 export interface DomainSOA {
   primaryNs: string;
@@ -344,17 +343,17 @@ async function atomicWriteSnapshot(domain: string, snapshot: DomainSnapshot): Pr
   const filename = timestampToFilename(snapshot.timestamp);
   const filepath = path.join(domainDir, `${filename}.json`);
   
-  // Write to temporary file first
+  // Write to temporary file in the same directory to avoid cross-device link errors on Windows
   const tempfile = path.join(
-    os.tmpdir(),
-    `snapshot-${domain}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.json`
+    domainDir,
+    `.${filename}.tmp.${Math.random().toString(36).slice(2, 9)}`
   );
 
   try {
     // Write to temp file
     await fs.writeFile(tempfile, JSON.stringify(snapshot, null, 2), "utf-8");
     
-    // Atomic rename
+    // Atomic rename (same directory = safe on all platforms)
     await fs.rename(tempfile, filepath);
     
     return filepath;
