@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# runtime data (never commit snapshots or local state)
+data/domains.json
+data/snapshots/
+*.local.json
+
 # vercel
 .vercel
 

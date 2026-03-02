@@ -1,0 +1,67 @@
+{
+  "domain": "synthetic-test.example",
+  "timestamp": "2026-03-02T00:00:00.000Z",
+  "registrar": "Test Registrar Inc.",
+  "registrarIanaId": "9999",
+  "registrantOrganization": "Test Organization",
+  "created": "2020-01-01T00:00:00Z",
+  "expires": "2030-12-31T23:59:59Z",
+  "lastUpdated": "2026-01-01T00:00:00Z",
+  "status": [
+    "client transfer prohibited"
+  ],
+  "dnssec": true,
+  "nameservers": [
+    "ns1.synthetic.example",
+    "ns2.synthetic.example"
+  ],
+  "soa": {
+    "nsname": "ns1.synthetic.example",
+    "hostmaster": "hostmaster.synthetic.example",
+    "serial": 2026030200,
+    "refresh": 3600,
+    "retry": 600,
+    "expire": 604800,
+    "minttl": 86400
+  },
+  "aRecords": [
+    "192.0.2.1"
+  ],
+  "mxRecords": [
+    {
+      "priority": 10,
+      "exchange": "mail.synthetic.example"
+    }
+  ],
+  "txtRecords": [
+    "v=spf1 include:synthetic.example ~all"
+  ],
+  "asn": "AS64496",
+  "hostingProvider": "Synthetic Cloud Services",
+  "cdnDetected": true,
+  "sslIssuer": "Synthetic CA",
+  "sslExpires": "2027-03-02T00:00:00.000Z",
+  "sslSans": [
+    "synthetic-test.example",
+    "www.synthetic-test.example"
+  ],
+  "sslFingerprint": "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
+  "httpsReachable": true,
+  "internalOwner": "Test Team",
+  "licensedTo": "Test Division",
+  "notes": "Synthetic test fixture for UI validation",
+  "rdapEntities": [
+    {
+      "role": "registrar",
+      "name": "Test Registrar Inc."
+    }
+  ],
+  "rdapRaw": null,
+  "changeSummary": [
+    {
+      "timestamp": "2026-03-02T00:00:00.000Z",
+      "field": "created",
+      "action": "synthetic fixture"
+    }
+  ]
+}

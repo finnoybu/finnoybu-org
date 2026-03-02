@@ -1,0 +1,507 @@
+meta:
+  project: finnoybu-org
+  phase: "0.0.x schema-definition"
+  generated: "2026-03-02T18:30:00.000Z"
+  invariant:
+    - "pause prior to each version bump"
+    - "new branch per version bump"
+    - "squash merges only"
+    - "token conservative: YAML is authoritative"
+    - "evidence-grounded fixes only"
+  note: "Reconstructed from git history and documented specifications"
+
+versions:
+  - version: "v0.0.0"
+    slug: "init"
+    pause_gate: true
+    branch_name: "main"
+    intent: "Next.js 14 scaffold via Create Next App"
+    evidence: ["git:fdba083"]
+    steps:
+      - "npx create-next-app@latest"
+      - "Select: TypeScript (Yes), ESLint (Yes), Tailwind CSS (No), src/ directory (Yes), App Router (Yes), import alias (default)"
+      - "cd finnoybu-org"
+      - "npm install"
+      - "npm run dev (verify localhost:3000)"
+
+  - version: "v0.0.1"
+    slug: "domain-snapshot-tool"
+    pause_gate: true
+    branch_name: "feature/v0.0.1-domain-snapshot-tool"
+    intent: "Implement core domain snapshot functionality with RDAP, DNS, SSL queries"
+    evidence: ["git:75d39d2"]
+    merge_strategy: "no-ff"
+    tag_ref: "v0.0.2"
+    tag_note: "Tagged as v0.0.2 in original implementation; chronologically v0.0.1"
+    steps:
+      - action: "create-storage-layer"
+        file: "src/lib/storage.ts"
+        content:
+          - "DomainSnapshot interface (14 fields: domain, timestamp, registrar, registrantOrganization, created, expires, status, dnssec, nameservers, aRecords, mxRecords, txtRecords, sslIssuer, sslExpires)"
+          - "DomainStore interface with domains map"
+          - "readStore(), writeStore(), addDomain(), updateDomain(), deleteDomain(), getDomains(), getDomainSnapshot()"
+          - "Auto-create data/domains.json on first run"
+      
+      - action: "create-snapshot-api"
+        file: "src/app/api/snapshot/route.ts"
+        content:
+          - "GET /api/snapshot - list all stored domains"
+          - "POST /api/snapshot - create/refresh snapshot with domain parameter"
+          - "DELETE via POST with action=delete"
+          - "RDAP query to rdap.org/domain/{domain}"
+          - "DNS queries: A, MX, TXT, NS records via dns.promises"
+          - "SSL/TLS query via tls.connect()"
+          - "Parallel async with individual error handling"
+      
+      - action: "create-ui"
+        file: "src/app/page.tsx"
+        content:
+          - "Single-page domain management interface"
+          - "Domain dropdown selector"
+          - "Add domain input + button"
+          - "Refresh snapshot button"
+          - "Delete domain button"
+          - "JSON output display with timestamp"
+          - "Inline styles (no framework)"
+      
+      - action: "create-data-directory"
+        path: "data/"
+        note: "Runtime storage directory"
+      
+      - action: "verify"
+        commands:
+          - "npm run build"
+          - "npm run dev"
+          - "Test: add domain, refresh snapshot, verify JSON output"
+
+  - version: "v0.0.2"
+    slug: "data-model-extension"
+    pause_gate: true
+    branch_name: "feature/v0.0.2-data-model-extension"
+    intent: "Extend DomainSnapshot schema to 26 fields (Level 1-2)"
+    evidence: ["copilot-instructions.md:Extended Data Model v0.0.2"]
+    tag_ref: "not-tagged"
+    tag_note: "Documented in copilot-instructions but not individually tagged"
+    steps:
+      - action: "extend-schema"
+        file: "src/lib/storage.ts"
+        fields_added:
+          - "registrarIanaId (string) - IANA registrar identifier"
+          - "lastUpdated (string) - Last modification date"
+          - "soa (DomainSOA) - SOA record details"
+          - "asn (string) - Autonomous System Number"
+          - "hostingProvider (string) - Detected ISP/hosting"
+          - "cdnDetected (boolean) - CDN detection flag"
+          - "sslSans (string[]) - Subject Alternative Names"
+          - "sslFingerprint (string) - SHA256 certificate fingerprint"
+          - "httpsReachable (boolean) - HTTPS connectivity test"
+          - "internalOwner (string) - Internal owner/team"
+          - "licensedTo (string) - Licensed division"
+          - "notes (string) - Internal annotations"
+        total_fields: 26
+      
+      - action: "verify"
+        commands:
+          - "npm run build"
+
+  - version: "v0.0.3"
+    slug: "backend-completion-schema-enforcement"
+    pause_gate: true
+    branch_name: "feature/v0.0.3-backend-completion-schema-enforcement"
+    intent: "Implement backend data acquisition for extended schema and enforce validation"
+    evidence: ["git:72c521c", "git:24105f5", "copilot-instructions.md:Backend Completion v0.0.3"]
+    merge_strategy: "no-ff"
+    tag_ref: "v0.0.3"
+    steps:
+      - action: "enhance-rdap-integration"
+        file: "src/app/api/snapshot/route.ts"
+        changes:
+          - "Extract registrarIanaId from rdap.publicIds where type='IANA Registrar ID'"
+          - "Extract dnssec from rdap.secureDNS.delegationSigned"
+          - "Extract lastUpdated from rdap.events where eventAction='last changed'"
+      
+      - action: "implement-dnssec-detection"
+        file: "src/app/api/snapshot/route.ts"
+        changes:
+          - "Primary: use RDAP secureDNS field"
+          - "Fallback: DNS DS record lookup via dns.resolve('DS')"
+      
+      - action: "implement-whois-asn-lookup"
+        file: "src/app/api/snapshot/route.ts"
+        changes:
+          - "Connect to whois.cymru.com:43 via net.Socket"
+          - "Query format: 'begin\\nverbose\\n{ipAddress}\\nend\\n'"
+          - "Parse 'origin:' or 'OriginAS:' for ASN"
+          - "Parse 'OrgName:' or 'org-name:' for hostingProvider"
+          - "Fallback: ipwho.is API if WHOIS unavailable"
+      
+      - action: "enhance-ssl-fingerprint"
+        file: "src/app/api/snapshot/route.ts"
+        changes:
+          - "Use tlsSocket.getPeerCertificate().fingerprint256 (SHA256)"
+          - "Fallback to fingerprint (SHA1) if SHA256 unavailable"
+      
+      - action: "implement-schema-validation"
+        file: "src/lib/storage.ts"
+        changes:
+          - "Create validateSnapshot() function"
+          - "Ensure all 26 DomainSnapshot keys present"
+          - "Populate missing keys with type-appropriate defaults"
+          - "Run validation before addDomain() and updateDomain()"
+      
+      - action: "create-canonical-boilerplate"
+        file: "data/domains.json"
+        changes:
+          - "Add example.com record with all 26 fields"
+          - "All fields empty/default values"
+          - "Anchors schema for reference"
+      
+      - action: "verify"
+        commands:
+          - "npm run build"
+          - "Test snapshot for finnoybu.com, finnoybu.org"
+          - "Verify all 26 fields present in output"
+
+  - version: "v0.0.4"
+    slug: "canonical-schema-definition"
+    pause_gate: true
+    branch_name: "feature/v0.0.4-canonical-schema-definition"
+    intent: "Formalize canonical schema with getCanonicalBase() function"
+    evidence: ["git:ac41880"]
+    merge_strategy: "no-ff"
+    tag_ref: "v0.0.4"
+    steps:
+      - action: "create-canonical-base-function"
+        file: "src/lib/storage.ts"
+        changes:
+          - "Add getCanonicalBase(domain, timestamp) function"
+          - "Returns complete DomainSnapshot with all 26 fields initialized"
+          - "Serves as foundation for all snapshot generation"
+          - "Documents each field category (Registration, DNS, Infrastructure, Security, Governance)"
+      
+      - action: "verify"
+        commands:
+          - "npm run build"
+          - "Verify canonical base generates 26-field snapshots"
+
+  - version: "v0.0.5"
+    slug: "level-2-data-completion"
+    pause_gate: true
+    branch_name: "feature/v0.0.5-implementation-corrections"
+    intent: "Complete Level 2 field population and fix implementation issues"
+    evidence: ["git:d1d712f"]
+    merge_strategy: "no-ff"
+    tag_ref: "v0.0.5"
+    steps:
+      - action: "implement-remaining-dns-queries"
+        file: "src/app/api/snapshot/route.ts"
+        changes:
+          - "Query SOA records via dns.resolveSoa()"
+          - "Extract nameserver, hostmaster, serial, refresh, retry, expire, minttl"
+      
+      - action: "implement-https-reachability"
+        file: "src/app/api/snapshot/route.ts"
+        changes:
+          - "Attempt tls.connect() to port 443"
+          - "Set httpsReachable=true if successful"
+          - "Set httpsReachable=false if connection fails"
+      
+      - action: "fix-cdn-detection"
+        file: "src/app/api/snapshot/route.ts"
+        changes:
+          - "Check nameservers for common CDN patterns"
+          - "cloudflare.com, akamai, fastly, cloudfront"
+      
+      - action: "verify"
+        commands:
+          - "npm run build"
+          - "Test snapshot for multiple domains"
+          - "Verify Level 2 fields populated"
+
+  - version: "v0.0.5a"
+    slug: "asn-extraction-amendment"
+    pause_gate: true
+    branch_name: "feature/v0.0.5a-asn-extraction-amendment"
+    intent: "Fix ASN extraction using Team Cymru DNS-based lookup"
+    evidence: ["git:5db478b"]
+    merge_strategy: "no-ff"
+    tag_ref: "v0.0.5a"
+    note: "Amendment to v0.0.5; replaces WHOIS with DNS-based ASN lookup"
+    steps:
+      - action: "replace-whois-with-dns-cymru"
+        file: "src/app/api/snapshot/route.ts"
+        changes:
+          - "Remove net.Socket WHOIS connection"
+          - "Implement Team Cymru DNS lookup: origin.asn.cymru.com"
+          - "For IP x.y.z.w, query w.z.y.x.origin.asn.cymru.com TXT"
+          - "Parse TXT response format: 'ASN | IP | BGP Prefix | CC | Registry | Allocated'"
+          - "Extract ASN from first field"
+          - "More reliable and faster than WHOIS port 43"
+      
+      - action: "verify"
+        commands:
+          - "npm run build"
+          - "Test: snapshot finnoybu.com → expect AS54113"
+          - "Test: snapshot finnoybu.org → expect AS22612"
+
+  - version: "v0.0.6"
+    slug: "github-ci-cd-bootstrap"
+    pause_gate: true
+    branch_name: "feature/v0.0.6-github-ci"
+    intent: "Initialize GitHub repository and CI/CD workflows"
+    evidence: ["git:38dc444", "git:7c64617", "git:1af40dd", "git:11c9346"]
+    merge_strategy: "squash"
+    tag_ref: "not-tagged"
+    note: "Repository and CI infrastructure; no individual tag"
+    steps:
+      - action: "create-github-repository"
+        commands:
+          - "gh repo create finnoybu/finnoybu-org --private --source=. --remote=origin"
+          - "git remote add origin https://github.com/finnoybu/finnoybu-org.git"
+      
+      - action: "create-ci-workflow"
+        file: ".github/workflows/ci.yml"
+        content:
+          - "name: CI"
+          - "on: [push, pull_request]"
+          - "jobs: build (runs-on ubuntu-latest, node 20.x)"
+          - "steps: checkout, setup-node, npm ci, npm run lint, npm run build"
+      
+      - action: "create-pr-build-workflow"
+        file: ".github/workflows/pr-build.yml"
+        content:
+          - "name: PR Build Validation"
+          - "on: pull_request"
+          - "matrix: node [20.x]"
+          - "steps: checkout, setup-node, npm ci, npm run build"
+      
+      - action: "create-production-build-workflow"
+        file: ".github/workflows/production-build.yml"
+        content:
+          - "name: Production Build"
+          - "on: push (branches: main)"
+          - "matrix: node [20.x]"
+          - "steps: checkout, setup-node, npm ci, npm run build"
+      
+      - action: "create-git-workflow-docs"
+        file: "docs/git-workflow.md"
+        content:
+          - "Feature branch workflow documentation"
+          - "Branch naming conventions"
+          - "Merge strategies"
+      
+      - action: "initial-push"
+        commands:
+          - "git push -u origin main"
+          - "git push origin --tags"
+      
+      - action: "verify"
+        commands:
+          - "gh repo view"
+          - "Check GitHub Actions tab for CI runs"
+
+  - version: "v0.0.7"
+    slug: "level-3-schema-extension"
+    pause_gate: true
+    branch_name: "feature/v0.0.7-level-3-schema-extension"
+    intent: "Add 28 Level 3 fields for future audit/compliance capabilities"
+    evidence: ["git:0c8c86a"]
+    merge_strategy: "no-ff"
+    tag_ref: "v0.0.7"
+    steps:
+      - action: "extend-schema-level-3"
+        file: "src/lib/storage.ts"
+        fields_added:
+          registration_rdap:
+            - "rdapEntities (Record<string, unknown>[])"
+            - "rdapRaw (Record<string, unknown> | null)"
+            - "registrantContactEmail (string)"
+            - "registrantCountry (string)"
+            - "registryOperator (string)"
+          dns_security:
+            - "dnskeyRecords (string[])"
+            - "dsRecords (string[])"
+            - "caaRecords (string[])"
+            - "zoneTransferAllowed (boolean)"
+          tls_analysis:
+            - "sslChainValid (boolean)"
+            - "sslChainDepth (number)"
+            - "sslSignatureAlgorithm (string)"
+            - "sslPublicKeyAlgorithm (string)"
+            - "sslKeySize (number)"
+            - "sslOcspStapled (boolean)"
+          http_security_headers:
+            - "hstsMaxAge (number)"
+            - "hstsPreload (boolean)"
+            - "cspHeaderPresent (boolean)"
+            - "xFrameOptionsPresent (boolean)"
+            - "referrerPolicyPresent (boolean)"
+          ip_intelligence:
+            - "ipReputationScore (number)"
+            - "ipBlacklistHits (string[])"
+            - "ipRir (string)"
+            - "ipAllocationDate (string)"
+          snapshot_integrity:
+            - "snapshotHash (string)"
+            - "previousSnapshotHash (string)"
+            - "changeSummary (Array<Record<string, unknown>>)"
+            - "riskScore (number)"
+        total_fields: 66
+        level_1_2_fields: 26
+        level_3_fields: 40
+        note: "Level 3 fields remain empty/default in v0.0.x; populated in future versions"
+      
+      - action: "update-canonical-base"
+        file: "src/lib/storage.ts"
+        changes:
+          - "Extend getCanonicalBase() to initialize all 66 fields"
+      
+      - action: "verify"
+        commands:
+          - "npm run build"
+          - "Test snapshot → verify 66 fields present"
+
+  - version: "v0.0.7-eslint-fixes"
+    slug: "eslint-typescript-fixes"
+    pause_gate: false
+    branch_name: "main"
+    intent: "Fix ESLint errors blocking production build"
+    evidence: ["git:84f0449"]
+    tag_ref: "not-tagged"
+    note: "Post-v0.0.7 correction applied directly to main"
+    steps:
+      - action: "fix-any-types"
+        file: "src/lib/storage.ts"
+        changes:
+          - "rdapEntities: any[] → Record<string, unknown>[]"
+          - "rdapRaw: any → Record<string, unknown> | null"
+          - "changeSummary: any[] → Array<Record<string, unknown>>"
+      
+      - action: "fix-jsx-quotes"
+        file: "src/app/page.tsx"
+        changes:
+          - "Escape 4x unescaped quote characters"
+          - "Replace literal \" with &quot; entity"
+      
+      - action: "verify"
+        commands:
+          - "npm run lint"
+          - "npm run build"
+
+  - version: "v0.0.7-node-version-alignment"
+    slug: "ci-node-24-update"
+    pause_gate: false
+    branch_name: "main"
+    intent: "Align CI Node.js version with local development (24.x)"
+    evidence: ["git:f8faa66"]
+    tag_ref: "not-tagged"
+    note: "Post-v0.0.7 CI update applied directly to main"
+    steps:
+      - action: "update-ci-workflows"
+        files:
+          - ".github/workflows/ci.yml"
+          - ".github/workflows/pr-build.yml"
+          - ".github/workflows/production-build.yml"
+        changes:
+          - "node-version: 20.x → 24.x"
+          - "matrix node: [20.x] → [24.x]"
+      
+      - action: "verify"
+        commands:
+          - "git push origin main"
+          - "Check GitHub Actions → verify Node 24.x in CI runs"
+
+  - version: "v0.0.8"
+    slug: "branch-protection-codeowners"
+    pause_gate: true
+    branch_name: "feature/v0.0.8-codeowners"
+    intent: "Apply branch protection rules and establish code ownership"
+    evidence: ["git:9a43fa0", "git:810b948"]
+    merge_strategy: "squash"
+    tag_ref: "v0.0.8"
+    steps:
+      - action: "make-repository-public"
+        commands:
+          - "gh repo edit finnoybu/finnoybu-org --visibility public --accept-visibility-change-consequences"
+        note: "Required for branch protection API on free tier"
+      
+      - action: "create-codeowners"
+        file: ".github/CODEOWNERS"
+        content:
+          - "# Canonical Doctrine"
+          - "/canon/ @finnoybu"
+          - ""
+          - "# All Code"
+          - "* @finnoybu"
+      
+      - action: "create-branch-protection-config"
+        file: ".github/branch_protection.json"
+        content:
+          - "required_conversation_resolution: true"
+          - "allow_force_pushes: false"
+          - "allow_deletions: false"
+          - "required_pull_request_reviews: {required_approving_review_count: 0, require_last_push_approval: true, dismiss_stale_reviews: true, require_code_owner_reviews: true}"
+          - "enforce_admins: true"
+          - "required_status_checks: {contexts: ['CI / build'], strict: true}"
+          - "required_linear_history: true"
+          - "allow_squash_merge: true"
+          - "allow_merge_commit: false"
+          - "allow_rebase_merge: false"
+      
+      - action: "apply-branch-protection"
+        commands:
+          - "gh api repos/finnoybu/finnoybu-org/branches/main/protection --input .github/branch_protection.json -X PUT"
+      
+      - action: "create-pr-for-codeowners"
+        commands:
+          - "git checkout -b feature/v0.0.8-codeowners"
+          - "git add .github/CODEOWNERS .github/branch_protection.json"
+          - "git commit -m 'v0.0.8 - Add CODEOWNERS for production guardrails'"
+          - "git push origin feature/v0.0.8-codeowners"
+          - "gh pr create --title 'v0.0.8 - Add CODEOWNERS' --body 'Establish code ownership and branch protection'"
+      
+      - action: "merge-pr"
+        commands:
+          - "Wait for CI checks to pass"
+          - "gh pr merge 1 --squash"
+        note: "May require temporarily removing branch protection due to review requirements"
+      
+      - action: "tag-release"
+        commands:
+          - "git checkout main"
+          - "git pull origin main"
+          - "git tag -a v0.0.8 -m 'v0.0.8 - Branch protection and CODEOWNERS governance'"
+          - "git push origin v0.0.8"
+      
+      - action: "verify"
+        commands:
+          - "gh repo view --json nameWithOwner,isPrivate,visibility"
+          - "Confirm visibility: PUBLIC"
+          - "Check GitHub branch protection rules on main"
+
+validation:
+  final_state:
+    repository: "finnoybu/finnoybu-org (public)"
+    tags: ["v0.0.2", "v0.0.3", "v0.0.4", "v0.0.5", "v0.0.5a", "v0.0.7", "v0.0.8"]
+    schema_fields: 66
+    level_1_2_active: 26
+    level_3_dormant: 40
+    ci_status: "passing"
+    node_version: "24.x"
+    branch_protection: "active"
+  
+  smoke_tests:
+    - "npm install"
+    - "npm run lint (expect: no errors)"
+    - "npm run build (expect: success)"
+    - "Snapshot finnoybu.com → verify 66 fields, ASN=AS54113"
+    - "Snapshot finnoybu.org → verify 66 fields, ASN=AS22612"
+    - "Verify branch protection active on main"
+    - "Verify CI workflows using Node 24.x"
+
+notes:
+  - "v0.0.1 tagged as v0.0.2 in original implementation; chronological order preserved here"
+  - "v0.0.2 and v0.0.6 not individually tagged; represented by commits and documentation"
+  - "ESLint fixes and Node version update applied post-v0.0.7 without version bump"
+  - "All evidence grounded in git history (commits) or documented specifications"
+  - "Buildbook validated by successful v0.0.8 completion and clean build"
