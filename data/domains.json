@@ -3,28 +3,59 @@
     "example.com": {
       "lastSnapshot": {
         "domain": "example.com",
-        "timestamp": "1970-01-01T00:00:00.000Z",
-        "registrar": "",
-        "registrarIanaId": "",
+        "timestamp": "2026-03-02T16:14:35.427Z",
+        "registrar": "RESERVED-Internet Assigned Numbers Authority",
+        "registrarIanaId": "376",
         "registrantOrganization": "",
-        "created": "",
-        "expires": "",
-        "lastUpdated": "",
-        "status": [],
+        "created": "1995-08-14T04:00:00Z",
+        "expires": "2026-08-13T04:00:00Z",
+        "lastUpdated": "2026-01-16T18:26:50Z",
+        "status": [
+          "client delete prohibited",
+          "client transfer prohibited",
+          "client update prohibited"
+        ],
         "dnssec": false,
-        "nameservers": [],
-        "soa": null,
-        "aRecords": [],
-        "aaaaRecords": [],
+        "nameservers": [
+          "elliott.ns.cloudflare.com",
+          "hera.ns.cloudflare.com"
+        ],
+        "soa": {
+          "primaryNs": "elliott.ns.cloudflare.com",
+          "hostmaster": "dns.cloudflare.com",
+          "serial": 2397268091,
+          "refresh": 10000,
+          "retry": 2400,
+          "expire": 604800,
+          "minimum": 1800
+        },
+        "aRecords": [
+          "104.18.26.120",
+          "104.18.27.120"
+        ],
+        "aaaaRecords": [
+          "2606:4700::6812:1a78",
+          "2606:4700::6812:1b78"
+        ],
         "cnameRecords": [],
-        "mxRecords": [],
-        "txtRecords": [],
+        "mxRecords": [
+          "0 "
+        ],
+        "txtRecords": [
+          "_k2n1y4vw3qtb4skdx9e7dxt97qrmmq9",
+          "v=spf1 -all"
+        ],
         "srvRecords": [],
-        "ipAddresses": [],
+        "ipAddresses": [
+          "104.18.26.120",
+          "104.18.27.120",
+          "2606:4700::6812:1a78",
+          "2606:4700::6812:1b78"
+        ],
         "asn": "",
-        "asnName": "",
-        "hostingProvider": "",
-        "cdnDetected": false,
+        "asnName": "CLOUDFLARENET",
+        "hostingProvider": "CLOUDFLARENET",
+        "cdnDetected": true,
         "ipCountry": "",
         "httpsReachable": false,
         "sslIssuer": "",
@@ -34,8 +65,8 @@
         "sslExpires": "",
         "sslFingerprint": "",
         "hstsEnabled": false,
-        "spfRecord": "",
-        "dmarcRecord": "",
+        "spfRecord": "v=spf1 -all",
+        "dmarcRecord": "v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s",
         "dkimSelectors": [],
         "internalOwner": "",
         "licensedTo": "",
@@ -45,7 +76,7 @@
     "finnoybu.com": {
       "lastSnapshot": {
         "domain": "finnoybu.com",
-        "timestamp": "2026-03-02T15:59:19.337Z",
+        "timestamp": "2026-03-02T16:27:16.435Z",
         "registrar": "GoDaddy.com, LLC",
         "registrarIanaId": "146",
         "registrantOrganization": "",
@@ -73,16 +104,16 @@
           "minimum": 600
         },
         "aRecords": [
-          "185.199.110.153",
-          "185.199.111.153",
+          "185.199.109.153",
           "185.199.108.153",
-          "185.199.109.153"
+          "185.199.111.153",
+          "185.199.110.153"
         ],
         "aaaaRecords": [
           "2606:50c0:8003::153",
-          "2606:50c0:8000::153",
+          "2606:50c0:8002::153",
           "2606:50c0:8001::153",
-          "2606:50c0:8002::153"
+          "2606:50c0:8000::153"
         ],
         "cnameRecords": [],
         "mxRecords": [],
@@ -90,15 +121,15 @@
         "srvRecords": [],
         "ipAddresses": [
           "185.199.110.153",
-          "185.199.111.153",
-          "185.199.108.153",
           "185.199.109.153",
-          "2606:50c0:8003::153",
+          "185.199.108.153",
+          "185.199.111.153",
           "2606:50c0:8000::153",
-          "2606:50c0:8001::153",
-          "2606:50c0:8002::153"
+          "2606:50c0:8003::153",
+          "2606:50c0:8002::153",
+          "2606:50c0:8001::153"
         ],
-        "asn": "",
+        "asn": "AS54113",
         "asnName": "US-GITHUB-20170413",
         "hostingProvider": "US-GITHUB-20170413",
         "cdnDetected": false,
@@ -124,7 +155,7 @@
     "finnoybu.org": {
       "lastSnapshot": {
         "domain": "finnoybu.org",
-        "timestamp": "2026-03-02T15:59:28.369Z",
+        "timestamp": "2026-03-02T16:27:22.531Z",
         "registrar": "NameCheap, Inc.",
         "registrarIanaId": "1068",
         "registrantOrganization": "",
@@ -137,8 +168,8 @@
         ],
         "dnssec": false,
         "nameservers": [
-          "dns1.registrar-servers.com",
-          "dns2.registrar-servers.com"
+          "dns2.registrar-servers.com",
+          "dns1.registrar-servers.com"
         ],
         "soa": {
           "primaryNs": "dns1.registrar-servers.com",
@@ -155,11 +186,11 @@
         "aaaaRecords": [],
         "cnameRecords": [],
         "mxRecords": [
-          "10 eforward1.registrar-servers.com",
           "10 eforward2.registrar-servers.com",
           "10 eforward3.registrar-servers.com",
           "15 eforward4.registrar-servers.com",
-          "20 eforward5.registrar-servers.com"
+          "20 eforward5.registrar-servers.com",
+          "10 eforward1.registrar-servers.com"
         ],
         "txtRecords": [
           "v=spf1 include:spf.efwd.registrar-servers.com ~all"
@@ -168,7 +199,7 @@
         "ipAddresses": [
           "162.255.119.90"
         ],
-        "asn": "",
+        "asn": "AS22612",
         "asnName": "NCNET-5",
         "hostingProvider": "NCNET-5",
         "cdnDetected": false,
@@ -183,6 +214,102 @@
         "hstsEnabled": false,
         "spfRecord": "v=spf1 include:spf.efwd.registrar-servers.com ~all",
         "dmarcRecord": "",
+        "dkimSelectors": [],
+        "internalOwner": "",
+        "licensedTo": "",
+        "notes": ""
+      }
+    },
+    "github.com": {
+      "lastSnapshot": {
+        "domain": "github.com",
+        "timestamp": "2026-03-02T16:24:53.194Z",
+        "registrar": "MarkMonitor Inc.",
+        "registrarIanaId": "292",
+        "registrantOrganization": "",
+        "created": "2007-10-09T18:20:50Z",
+        "expires": "2026-10-09T18:20:50Z",
+        "lastUpdated": "2024-09-07T09:16:32Z",
+        "status": [
+          "client delete prohibited",
+          "client transfer prohibited",
+          "client update prohibited"
+        ],
+        "dnssec": false,
+        "nameservers": [
+          "dns2.p08.nsone.net",
+          "dns3.p08.nsone.net",
+          "dns4.p08.nsone.net",
+          "ns-1283.awsdns-32.org",
+          "ns-1707.awsdns-21.co.uk",
+          "ns-421.awsdns-52.com",
+          "ns-520.awsdns-01.net",
+          "dns1.p08.nsone.net"
+        ],
+        "soa": {
+          "primaryNs": "dns1.p08.nsone.net",
+          "hostmaster": "hostmaster.nsone.net",
+          "serial": 1656468023,
+          "refresh": 43200,
+          "retry": 7200,
+          "expire": 1209600,
+          "minimum": 3600
+        },
+        "aRecords": [
+          "140.82.112.3"
+        ],
+        "aaaaRecords": [],
+        "cnameRecords": [],
+        "mxRecords": [
+          "10 alt3.aspmx.l.google.com",
+          "10 alt4.aspmx.l.google.com",
+          "1 aspmx.l.google.com",
+          "5 alt1.aspmx.l.google.com",
+          "5 alt2.aspmx.l.google.com"
+        ],
+        "txtRecords": [
+          "jamf-site-verification=XtaPNIYghF_e_xRDI8CjgQ",
+          "krisp-domain-verification=ZlyiK7XLhnaoUQb2hpak1PLY7dFkl1WE",
+          "loom-site-verification=f3787154f1154b7880e720a511ea664d",
+          "miro-verification=d2e174fdb00c71e0bcf58f8e58c3da2dd80dcfa9",
+          "shopify-verification-code=t1YPwcmvnxZyBycaCpk1MPyWoFs72o",
+          "stripe-verification=f88ef17321660a01bab1660454192e014defa29ba7b8de9633c69d6b4912217f",
+          "v=spf1 ip4:192.30.252.0/22 include:_netblocks.google.com include:_netblocks2.google.com include:_netblocks3.google.com include:spf.protection.outlook.com include:mail.zendesk.com include:_spf.salesforce.com include:servers.mcsv.net include:mktomail.com ip4:62.253.227.114 ip4:166.78.69.169 ip4:166.78.69.170 ip4:166.78.71.131 ip4:167.89.101.2 ip4:167.89.101.192/28 ip4:192.254.112.60 ip4:192.254.112.98/31 ip4:192.254.113.10 ip4:192.254.113.101 ip4:192.254.114.176  ~all",
+          "MS=6BF03E6AF5CB689E315FB6199603BABF2C88D805",
+          "MS=ms44452932",
+          "MS=ms58704441",
+          "TAILSCALE-xOzoDvFUzZr5YYVCQFuD",
+          "adobe-idp-site-verification=b92c9e999aef825edc36e0a3d847d2dbad5b2fc0e05c79ddd7a16139b48ecf4b",
+          "apple-domain-verification=RyQhdzTl6Z6x8ZP4",
+          "atlassian-domain-verification=jjgw98AKv2aeoYFxiL/VFaoyPkn3undEssTRuMg6C/3Fp/iqhkV4HVV7WjYlVeF8",
+          "calendly-site-verification=at0DQARi7IZvJtXQAWhMqpmIzpvoBNF7aam5VKKxP",
+          "docusign=087098e3-3d46-47b7-9b4e-8a23028154cd",
+          "facebook-domain-verification=39xu4jzl7roi7x0n93ldkxjiaarx50",
+          "google-site-verification=82Le34Flgtd15ojYhHlGF_6g72muSjamlMVThBOJpks",
+          "google-site-verification=UTM-3akMgubp6tQtgEuAkYNYLyYAvpTnnSrDMWoDR3o"
+        ],
+        "srvRecords": [],
+        "ipAddresses": [
+          "140.82.112.3"
+        ],
+        "asn": "",
+        "asnName": "GITHU",
+        "hostingProvider": "GITHU",
+        "cdnDetected": false,
+        "ipCountry": "",
+        "httpsReachable": true,
+        "sslIssuer": "Sectigo Limited",
+        "sslSubject": "github.com",
+        "sslSans": [
+          "DNS:github.com",
+          "DNS:www.github.com"
+        ],
+        "sslValidFrom": "Jan  6 00:00:00 2026 GMT",
+        "sslExpires": "Apr  5 23:59:59 2026 GMT",
+        "sslFingerprint": "54:1C:D0:29:8C:F1:F1:9A:AE:F4:38:6E:0F:C4:C1:3E:89:27:85:E7:1D:BA:51:33:B6:B9:82:0E:F6:1B:2C:E8",
+        "hstsEnabled": false,
+        "spfRecord": "v=spf1 ip4:192.30.252.0/22 include:_netblocks.google.com include:_netblocks2.google.com include:_netblocks3.google.com include:spf.protection.outlook.com include:mail.zendesk.com include:_spf.salesforce.com include:servers.mcsv.net include:mktomail.com ip4:62.253.227.114 ip4:166.78.69.169 ip4:166.78.69.170 ip4:166.78.71.131 ip4:167.89.101.2 ip4:167.89.101.192/28 ip4:192.254.112.60 ip4:192.254.112.98/31 ip4:192.254.113.10 ip4:192.254.113.101 ip4:192.254.114.176  ~all",
+        "dmarcRecord": "v=DMARC1; p=reject; pct=100; rua=mailto:dmarc@github.com",
         "dkimSelectors": [],
         "internalOwner": "",
         "licensedTo": "",
