@@ -306,6 +306,27 @@ async function fetchSslData(domain: string): Promise<Partial<DomainSnapshot>> {
 async function fetchIpRdapData(ip: string): Promise<{ asn?: string; asnName?: string; hostingProvider?: string; ipCountry?: string }> {
   const result: { asn?: string; asnName?: string; hostingProvider?: string; ipCountry?: string } = {};
 
+  // Query Team Cymru IP-to-ASN mapping service via DNS
+  try {
+    const octets = ip.split('.');
+    if (octets.length === 4) {
+      const reversedIp = octets.reverse().join('.');
+      const cymruDomain = `${reversedIp}.origin.asn.cymru.com`;
+      
+      const txtRecords = await dns.resolveTxt(cymruDomain).catch(() => []);
+      if (txtRecords.length > 0) {
+        // Format: "ASN | IP Prefix | Country | RIR | Allocation Date"
+        const recordParts = txtRecords[0].join('').split('|').map(s => s.trim());
+        if (recordParts.length >= 1 && recordParts[0]) {
+          result.asn = `AS${recordParts[0]}`;
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`Team Cymru ASN lookup error for ${ip}:`, error);
+  }
+
+  // Query ARIN RDAP for organization name, hosting provider, and country
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -318,14 +339,6 @@ async function fetchIpRdapData(ip: string): Promise<{ asn?: string; asnName?: st
 
     if (response && response.ok) {
       const data: IpRdapResponse = await response.json();
-
-      // Extract ASN from handle (format: NET-xxx-xxx or ASxxx)
-      if (data.handle) {
-        const asnMatch = data.handle.match(/AS(\d+)/i);
-        if (asnMatch && asnMatch[1]) {
-          result.asn = `AS${asnMatch[1]}`;
-        }
-      }
 
       // Extract organization name
       if (data.name) {
