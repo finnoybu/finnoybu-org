@@ -1,0 +1,66 @@
+{
+  "domains": {
+    "finnoybu.org": {
+      "lastSnapshot": {
+        "domain": "finnoybu.org",
+        "timestamp": "2026-03-02T14:05:29.932Z",
+        "nameservers": [
+          "dns1.registrar-servers.com",
+          "dns2.registrar-servers.com"
+        ],
+        "status": [
+          "client transfer prohibited",
+          "add period"
+        ],
+        "expires": "2031-03-02T13:07:24.715Z",
+        "created": "2026-03-02T13:07:24.715Z",
+        "aRecords": [
+          "162.255.119.90"
+        ],
+        "mxRecords": [
+          "10 eforward2.registrar-servers.com",
+          "10 eforward3.registrar-servers.com",
+          "15 eforward4.registrar-servers.com",
+          "20 eforward5.registrar-servers.com",
+          "10 eforward1.registrar-servers.com"
+        ],
+        "txtRecords": [
+          "v=spf1 include:spf.efwd.registrar-servers.com ~all"
+        ]
+      }
+    },
+    "finnoybu.com": {
+      "lastSnapshot": {
+        "domain": "finnoybu.com",
+        "timestamp": "2026-03-02T14:11:35.011Z",
+        "nameservers": [
+          "ns31.domaincontrol.com",
+          "ns32.domaincontrol.com"
+        ],
+        "status": [
+          "client delete prohibited",
+          "client renew prohibited",
+          "client transfer prohibited",
+          "client update prohibited"
+        ],
+        "created": "2007-10-02T19:23:09Z",
+        "expires": "2026-10-02T19:23:09Z",
+        "lastUpdated": "2025-10-03T16:24:17Z",
+        "aRecords": [
+          "185.199.110.153",
+          "185.199.111.153",
+          "185.199.108.153",
+          "185.199.109.153"
+        ],
+        "soa": "ns31.domaincontrol.com dns.jomax.net 2024120800 28800 7200 604800 600",
+        "httpsReachable": true,
+        "sslIssuer": "Let's Encrypt",
+        "sslExpires": "Apr  5 08:05:09 2026 GMT",
+        "sslSans": [
+          "DNS:finnoybu.com"
+        ],
+        "sslFingerprint": "18:E6:50:AF:01:BE:96:06:EC:DA:85:FA:5B:AA:17:4E:08:EB:20:B2"
+      }
+    }
+  }
+}
