@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as dns } from "dns";
 import tls from "tls";
-import { DomainSnapshot, getCanonicalBase, persistSnapshot } from "@/lib/storage";
+import { DomainSnapshot, getCanonicalBase, persistSnapshot, isValidDomain } from "@/lib/storage";
 import {
   badRequest,
   enforceRateLimit,
@@ -480,8 +480,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Default action: create/update snapshot and persist to disk
+    // But first check if domain is valid
+    const valid = await isValidDomain(normalizedDomain);
+    
     const snapshot = await createSnapshot(normalizedDomain);
-    await persistSnapshot(normalizedDomain, snapshot);
+    
+    // Only persist if domain is valid
+    if (valid) {
+      await persistSnapshot(normalizedDomain, snapshot);
+    }
 
     return NextResponse.json(snapshot, { status: 201 });
   } catch (error) {

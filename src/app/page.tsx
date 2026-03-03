@@ -16,8 +16,9 @@ interface StatusSignal {
 }
 
 interface StatusResult {
-  status: "stable" | "drift" | "risk" | "critical";
-  signals: StatusSignal[];
+  domain_state: "invalid" | "valid";
+  stability_state?: "baseline" | "stable" | "drift" | "risk" | "critical";
+  signals?: StatusSignal[];
 }
 
 interface DiffEntry {
@@ -36,6 +37,8 @@ const SEVERITY_COLORS = {
   drift: "#D97706",
   risk: "#DC2626",
   critical: "#7F1D1D",
+  baseline: "#0EA5E9",
+  invalid: "#9CA3AF",
 };
 
 export default function Home() {
@@ -204,12 +207,14 @@ export default function Home() {
   const selectedSnapshot = domains.find((d) => d.domain === selectedDomain)?.snapshot;
   
   // Group signals by severity (descending order: critical, risk, drift, stable)
-  const groupedSignals = status?.signals.reduce((acc, signal) => {
-    const severity = signal.severity;
-    if (!acc[severity]) acc[severity] = [];
-    acc[severity].push(signal);
-    return acc;
-  }, {} as Record<string, StatusSignal[]>) || {};
+  const groupedSignals = status?.signals
+    ? status.signals.reduce((acc, signal) => {
+        const severity = signal.severity;
+        if (!acc[severity]) acc[severity] = [];
+        acc[severity].push(signal);
+        return acc;
+      }, {} as Record<string, StatusSignal[]>)
+    : {};
 
   return (
     <div style={{ minHeight: "100vh", fontFamily: "system-ui, sans-serif", padding: "2rem", backgroundColor: "#f9fafb" }}>
@@ -383,40 +388,104 @@ export default function Home() {
 
         {selectedSnapshot && status && (
           <>
-            {/* Stability Summary Banner */}
-            <div
-              style={{
-                padding: "1.5rem",
-                backgroundColor: SEVERITY_COLORS[status.status],
-                color: "white",
-                borderRadius: "8px",
-                marginBottom: "1.5rem",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-                <div>
-                  <div style={{ fontSize: "0.75rem", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "0.5rem", opacity: 0.9 }}>
-                    STATUS
-                  </div>
-                  <div style={{ fontSize: "2rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.025em" }}>
-                    {status.status}
-                  </div>
-                  <div style={{ fontSize: "0.9rem", marginTop: "0.5rem", opacity: 0.95 }}>
-                    {status.signals.length === 0 ? "No changes detected" : `${status.signals.length} signal${status.signals.length !== 1 ? 's' : ''} detected`}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", fontSize: "0.875rem", opacity: 0.95 }}>
-                  <div>Latest snapshot</div>
-                  <div style={{ fontWeight: "500", marginTop: "0.25rem" }}>
-                    {new Date(selectedSnapshot.timestamp).toLocaleString()}
+            {/* Invalid Domain Block */}
+            {status.domain_state === "invalid" && (
+              <div
+                style={{
+                  padding: "1.5rem",
+                  backgroundColor: SEVERITY_COLORS.invalid,
+                  color: "white",
+                  borderRadius: "8px",
+                  marginBottom: "1.5rem",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+                  <div>
+                    <div style={{ fontSize: "0.75rem", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "0.5rem", opacity: 0.9 }}>
+                      STATUS
+                    </div>
+                    <div style={{ fontSize: "2rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.025em" }}>
+                      INVALID DOMAIN
+                    </div>
+                    <div style={{ fontSize: "0.9rem", marginTop: "0.5rem", opacity: 0.95 }}>
+                      Domain could not be resolved or is not registered
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Active Signals Section */}
-            {status.signals.length > 0 && (
+            {/* Baseline State Block */}
+            {status.domain_state === "valid" && status.stability_state === "baseline" && (
+              <div
+                style={{
+                  padding: "1.5rem",
+                  backgroundColor: SEVERITY_COLORS.baseline,
+                  color: "white",
+                  borderRadius: "8px",
+                  marginBottom: "1.5rem",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+                  <div>
+                    <div style={{ fontSize: "0.75rem", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "0.5rem", opacity: 0.9 }}>
+                      STATUS
+                    </div>
+                    <div style={{ fontSize: "2rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.025em" }}>
+                      BASELINE
+                    </div>
+                    <div style={{ fontSize: "0.9rem", marginTop: "0.5rem", opacity: 0.95 }}>
+                      Initial snapshot captured; no comparison available
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", fontSize: "0.875rem", opacity: 0.95 }}>
+                    <div>Baseline snapshot</div>
+                    <div style={{ fontWeight: "500", marginTop: "0.25rem" }}>
+                      {new Date(selectedSnapshot.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Stability Summary Banner */}
+            {status.domain_state === "valid" && status.stability_state !== "baseline" && (
+              <div
+                style={{
+                  padding: "1.5rem",
+                  backgroundColor: SEVERITY_COLORS[status.stability_state as keyof typeof SEVERITY_COLORS],
+                  color: "white",
+                  borderRadius: "8px",
+                  marginBottom: "1.5rem",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+                  <div>
+                    <div style={{ fontSize: "0.75rem", fontWeight: "600", letterSpacing: "0.05em", marginBottom: "0.5rem", opacity: 0.9 }}>
+                      STATUS
+                    </div>
+                    <div style={{ fontSize: "2rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.025em" }}>
+                      {status.stability_state}
+                    </div>
+                    <div style={{ fontSize: "0.9rem", marginTop: "0.5rem", opacity: 0.95 }}>
+                      {!status.signals || status.signals.length === 0 ? "No changes detected" : `${status.signals.length} signal${status.signals.length !== 1 ? 's' : ''} detected`}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", fontSize: "0.875rem", opacity: 0.95 }}>
+                    <div>Latest snapshot</div>
+                    <div style={{ fontWeight: "500", marginTop: "0.25rem" }}>
+                      {new Date(selectedSnapshot.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Active Signals Section - Only show if domain is valid and not baseline */}
+            {status.domain_state === "valid" && status.stability_state !== "baseline" && status.signals && status.signals.length > 0 && (
               <div
                 style={{
                   backgroundColor: "white",
@@ -523,7 +592,7 @@ export default function Home() {
                     No snapshot history available
                   </div>
                 )}
-                {history.length > 1 && (
+                {history.length > 1 && status.domain_state === "valid" && status.stability_state !== "baseline" && (
                   <button
                     onClick={() => setShowDiff(!showDiff)}
                     style={{
@@ -544,8 +613,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Collapsible Diff View */}
-            {showDiff && diff.length > 0 && (
+            {/* Collapsible Diff View - Only show if domain valid and not baseline */}
+            {showDiff && diff.length > 0 && status.domain_state === "valid" && status.stability_state !== "baseline" && (
               <div
                 style={{
                   backgroundColor: "white",
