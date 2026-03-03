@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDomainStatus } from "@/lib/storage";
+import {
+  badRequest,
+  enforceRateLimit,
+  getRequestId,
+  internalError,
+  logServerError,
+} from "@/lib/api-helpers";
 
 /**
  * GET /api/status?domain=<domain>
@@ -13,24 +20,25 @@ import { getDomainStatus } from "@/lib/storage";
  * Returns 500 on server error.
  */
 export async function GET(request: NextRequest) {
+  const requestId = getRequestId();
+
+  const rateLimited = enforceRateLimit(request, requestId);
+  if (rateLimited) {
+    return rateLimited;
+  }
+
   try {
     const domain = request.nextUrl.searchParams.get("domain");
 
     if (!domain) {
-      return NextResponse.json(
-        { error: "domain parameter is required" },
-        { status: 400 }
-      );
+      return badRequest("domain parameter is required", requestId);
     }
 
     const status = await getDomainStatus(domain.toLowerCase().trim());
 
     return NextResponse.json(status);
   } catch (error) {
-    console.error("Error computing domain status:", error);
-    return NextResponse.json(
-      { error: "Failed to compute domain status" },
-      { status: 500 }
-    );
+    logServerError(requestId, "Error computing domain status", error);
+    return internalError("Failed to compute domain status", requestId);
   }
 }

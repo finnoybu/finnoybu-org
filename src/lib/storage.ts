@@ -115,6 +115,7 @@ interface DomainStore {
 
 const DATA_FILE = path.join(process.cwd(), "data", "domains.json");
 const SAMPLE_FILE = path.join(process.cwd(), "data", "domains.sample.json");
+export const MAX_SNAPSHOTS_PER_DOMAIN = 2;
 
 /**
  * Returns a canonical base DomainSnapshot with all fields present (v0.0.7 schema).
@@ -404,8 +405,8 @@ async function listSnapshotsForDomain(domain: string): Promise<DomainSnapshot[]>
 }
 
 /**
- * Enforces 2-snapshot retention policy: keeps only the 2 most recent snapshots.
- * Deletes older snapshots if count exceeds 2.
+ * Enforces snapshot retention policy: keeps only the configured number of most recent snapshots.
+ * Deletes older snapshots first if count exceeds the maximum.
  */
 async function enforceSnapshotRetention(domain: string): Promise<void> {
   const domainDir = path.join(SNAPSHOTS_DIR, domain);
@@ -414,9 +415,9 @@ async function enforceSnapshotRetention(domain: string): Promise<void> {
     const files = await fs.readdir(domainDir);
     const jsonFiles = files.filter((f) => f.endsWith(".json")).sort();
 
-    // If more than 2 snapshots exist, delete the oldest ones
-    if (jsonFiles.length > 2) {
-      const filesToDelete = jsonFiles.slice(0, jsonFiles.length - 2);
+    // If too many snapshots exist, delete oldest first
+    if (jsonFiles.length > MAX_SNAPSHOTS_PER_DOMAIN) {
+      const filesToDelete = jsonFiles.slice(0, jsonFiles.length - MAX_SNAPSHOTS_PER_DOMAIN);
       
       for (const file of filesToDelete) {
         const filepath = path.join(domainDir, file);
@@ -438,7 +439,7 @@ export async function persistSnapshot(domain: string, snapshot: DomainSnapshot):
   // Write to disk with atomic rename
   const filepath = await atomicWriteSnapshot(domain, validatedSnapshot);
   
-  // Enforce retention policy (keep max 2 snapshots)
+  // Enforce retention policy in one place
   await enforceSnapshotRetention(domain);
   
   // Also update the legacy store for backward compatibility

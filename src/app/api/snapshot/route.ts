@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as dns } from "dns";
 import tls from "tls";
 import { DomainSnapshot, getCanonicalBase, persistSnapshot } from "@/lib/storage";
+import {
+  badRequest,
+  enforceRateLimit,
+  getRequestId,
+  internalError,
+  logServerError,
+  notFound,
+} from "@/lib/api-helpers";
 
 interface ExtendedPeerCertificate extends tls.PeerCertificate {
   subjectaltname?: string;
@@ -444,11 +452,18 @@ async function createSnapshot(domain: string): Promise<DomainSnapshot> {
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestId();
+
+  const rateLimited = enforceRateLimit(request, requestId);
+  if (rateLimited) {
+    return rateLimited;
+  }
+
   try {
     const { domain, action } = await request.json();
 
     if (!domain) {
-      return NextResponse.json({ error: "Domain is required" }, { status: 400 });
+      return badRequest("Domain is required", requestId);
     }
 
     const normalizedDomain = domain.toLowerCase().trim();
@@ -458,7 +473,7 @@ export async function POST(request: NextRequest) {
       const success = await deleteDomain(normalizedDomain);
 
       if (!success) {
-        return NextResponse.json({ error: "Domain not found" }, { status: 404 });
+        return notFound("Domain not found", requestId);
       }
 
       return NextResponse.json({ success: true, message: "Domain deleted" });
@@ -470,15 +485,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(snapshot, { status: 201 });
   } catch (error) {
-    console.error("Snapshot API error:", error);
-    return NextResponse.json(
-      { error: "Failed to create snapshot", details: String(error) },
-      { status: 500 }
-    );
+    logServerError(requestId, "Snapshot API error", error);
+    return internalError("Failed to create snapshot", requestId);
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const requestId = getRequestId();
+
+  const rateLimited = enforceRateLimit(request, requestId);
+  if (rateLimited) {
+    return rateLimited;
+  }
+
   try {
     const { getDomains, getDomainSnapshot } = await import("@/lib/storage");
     const domains = await getDomains();
@@ -492,7 +511,7 @@ export async function GET() {
 
     return NextResponse.json({ domains: domainsList });
   } catch (error) {
-    console.error("GET snapshot error:", error);
-    return NextResponse.json({ error: "Failed to fetch domains" }, { status: 500 });
+    logServerError(requestId, "GET snapshot error", error);
+    return internalError("Failed to fetch domains", requestId);
   }
 }
