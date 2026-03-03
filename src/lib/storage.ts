@@ -1,5 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
+import tls from "tls";
+import { promises as dns } from "dns";
 
 export interface DomainSOA {
   primaryNs: string;
@@ -596,9 +598,15 @@ export interface StatusSignal {
   days_remaining?: number;
 }
 
+/**
+ * Domain state vs stability state are orthogonal.
+ * domain_state: whether the domain can be resolved/is registered
+ * stability_state: only applies when domain_state = "valid"
+ */
 export interface StatusResult {
-  status: "stable" | "drift" | "risk" | "critical";
-  signals: StatusSignal[];
+  domain_state: "invalid" | "valid";
+  stability_state?: "baseline" | "stable" | "drift" | "risk" | "critical";
+  signals?: StatusSignal[];
 }
 
 // ============================================================================
@@ -647,6 +655,84 @@ interface EffectiveRules {
     severity: "stable" | "drift" | "risk";
     threshold?: number;
   };
+}
+
+// ============================================================================
+// v0.1.9_PATCH Domain Validity Detection
+// ============================================================================
+
+/**
+ * Checks if a domain is valid (resolvable and registered).
+ * Returns false if:
+ * - DNS resolution fails with ENOTFOUND/NXDOMAIN
+ * - RDAP lookup returns no registration
+ * - Domain has invalid TLD
+ * Returns true if at least one source (RDAP, DNS A/AAAA, TLS) succeeds
+ */
+export async function isValidDomain(domain: string): Promise<boolean> {
+  // Basic format check: must contain at least one dot and valid characters
+  if (!domain || !domain.includes(".") || !/^[a-z0-9.-]+$/i.test(domain)) {
+    return false;
+  }
+
+  try {
+    // Try DNS resolution (A record)
+    try {
+      const aRecords = await dns.resolve4(domain).catch(() => []);
+      if (aRecords.length > 0) {
+        return true; // Domain has A records
+      }
+    } catch {
+      // Fall through
+    }
+
+    // Try RDAP lookup
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(`https://rdap.org/domain/${domain}`, {
+        signal: controller.signal,
+      }).catch(() => null);
+      clearTimeout(timeoutId);
+
+      if (response && response.ok) {
+        return true; // RDAP found registration
+      }
+    } catch {
+      // Fall through
+    }
+
+    // Try TLS connection
+    try {
+      const certificate = await new Promise<boolean>((resolve) => {
+        const socket = tls.connect(
+          443,
+          domain,
+          { servername: domain },
+          function () {
+            socket.destroy();
+            resolve(true);
+          }
+        );
+        socket.on("error", () => resolve(false));
+        socket.setTimeout(5000, () => {
+          socket.destroy();
+          resolve(false);
+        });
+      });
+      if (certificate) {
+        return true; // TLS succeeded
+      }
+    } catch {
+      // Fall through
+    }
+
+    // All methods failed - domain is invalid
+    return false;
+  } catch (error) {
+    console.error(`Domain validity check error for ${domain}:`, error);
+    return false; // Conservative: treat errors as invalid
+  }
 }
 
 /**
@@ -742,18 +828,6 @@ function mergeRuleset(custom: CustomRuleset | null): EffectiveRules {
 
   return effective;
 }
-
-/**
- * Applies deterministic classification rules to a list of diffs.
- * Returns status and list of triggered signals.
- *
- * Rules can be customized via ruleset.local.json:
- * - Enable/disable specific rules
- * - Override severity (risk/drift/stable)
- * - Set expiration warning thresholds
- *
- * Priority: risk > drift > stable (applied to effective rules)
- */
 
 // ============================================================================
 // v0.1.5 Expiration Warning System
@@ -871,9 +945,21 @@ function evaluateDomainExpiration(snapshot: DomainSnapshot): StatusSignal[] {
   return signals;
 }
 
+/**
+ * Applies deterministic classification rules to a list of diffs.
+ * Returns status and list of triggered signals.
+ *
+ * Rules can be customized via ruleset.local.json:
+ * - Enable/disable specific rules
+ * - Override severity (risk/drift/stable)
+ * - Set expiration warning thresholds
+ *
+ * Priority: risk > drift > stable (applied to effective rules)
+ */
 export async function applyClassificationRules(
   diffs: DiffEntry[],
-  snapshot?: DomainSnapshot
+  snapshot?: DomainSnapshot,
+  isFirstSnapshot: boolean = false
 ): Promise<StatusResult> {
   const signals: StatusSignal[] = [];
   const statusSeverities: { [status: string]: number } = {
@@ -883,10 +969,20 @@ export async function applyClassificationRules(
     critical: 3,
   };
 
-  // No diffs means stable (by default)
+  // First snapshot (baseline) - no diff evaluation yet
+  if (isFirstSnapshot) {
+    return {
+      domain_state: "valid",
+      stability_state: "baseline",
+      signals: [],
+    };
+  }
+
+  // No diffs and not first snapshot means stable
   if (diffs.length === 0 && !snapshot) {
     return {
-      status: "stable",
+      domain_state: "valid",
+      stability_state: "stable",
       signals: [{ rule: "no_changes_detected", severity: "stable", path: "" }],
     };
   }
@@ -961,33 +1057,45 @@ export async function applyClassificationRules(
     return Math.max(max, statusSeverities[signal.severity]);
   }, statusSeverities.stable);
 
-  // Determine final status based on max severity
-  const statusMap = ["stable", "drift", "risk", "critical"];
-  const status = (statusMap[maxSeverity] || "stable") as StatusResult["status"];
+  // Determine final stability_state based on max severity
+  const stabilityMap = ["stable", "drift", "risk", "critical"];
+  const stability_state = (stabilityMap[maxSeverity] || "stable") as "stable" | "drift" | "risk" | "critical";
 
   return {
-    status,
+    domain_state: "valid",
+    stability_state,
     signals,
   };
 }
 
 /**
- * Gets the stability status for a domain by computing the diff and applying classification rules.
- * Also evaluates expiration warnings from the latest snapshot.
- * Respects custom ruleset overrides if present.
- * Returns stable status if fewer than 2 snapshots exist.
+ * Gets the domain state and stability status for a domain.
+ * Returns domain_state: invalid if domain cannot be resolved.
+ * Returns domain_state: valid with stability_state: baseline if only 1 snapshot.
+ * Returns domain_state: valid with stability_state: (stable|drift|risk|critical) if 2+ snapshots.
  */
 export async function getDomainStatus(domain: string): Promise<StatusResult> {
   try {
+    // Check if domain is valid first
+    const valid = await isValidDomain(domain);
+    if (!valid) {
+      return {
+        domain_state: "invalid",
+      };
+    }
+
+    // Domain is valid - check snapshot count
+    const snapshots = await getSnapshotHistory(domain);
+    const isFirstSnapshot = snapshots.length === 1;
+
     const diffs = await getDomainDiff(domain);
     const latestSnapshot = await getLatestSnapshot(domain);
-    return applyClassificationRules(diffs, latestSnapshot || undefined);
+    return applyClassificationRules(diffs, latestSnapshot || undefined, isFirstSnapshot);
   } catch (error) {
     console.error(`Error computing status for ${domain}:`, error);
-    // Return stable on error
+    // Return invalid on error (conservative)
     return {
-      status: "stable",
-      signals: [{ rule: "error_fallback", severity: "stable", path: "" }],
+      domain_state: "invalid",
     };
   }
 }

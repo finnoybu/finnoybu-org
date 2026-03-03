@@ -36,7 +36,7 @@ function hasValidBearerToken(request: NextRequest): boolean {
   return authorization === expected;
 }
 
-export function middleware(request: NextRequest): NextResponse {
+export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
   if (isBypassPath(pathname)) {
