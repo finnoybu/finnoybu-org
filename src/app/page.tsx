@@ -10,8 +10,8 @@ interface DomainData {
 
 interface StatusSignal {
   rule: string;
-  path: string;
-  severity?: "stable" | "drift" | "risk" | "critical";
+  path?: string;
+  severity: "stable" | "drift" | "risk" | "critical";
   days_remaining?: number;
 }
 
@@ -205,7 +205,7 @@ export default function Home() {
   
   // Group signals by severity (descending order: critical, risk, drift, stable)
   const groupedSignals = status?.signals.reduce((acc, signal) => {
-    const severity = signal.severity || "stable";
+    const severity = signal.severity;
     if (!acc[severity]) acc[severity] = [];
     acc[severity].push(signal);
     return acc;

@@ -590,8 +590,8 @@ export async function getDomainDiff(domain: string): Promise<DiffEntry[]> {
 
 export interface StatusSignal {
   rule: string;
-  path: string;
-  severity?: "stable" | "drift" | "risk" | "critical";
+  severity: "stable" | "drift" | "risk" | "critical";
+  path?: string;
   days_remaining?: number;
 }
 
@@ -881,13 +881,12 @@ export async function applyClassificationRules(
     risk: 2,
     critical: 3,
   };
-  let maxSeverity = statusSeverities.stable;
 
   // No diffs means stable (by default)
   if (diffs.length === 0 && !snapshot) {
     return {
       status: "stable",
-      signals: [{ rule: "no_changes_detected", path: "" }],
+      signals: [{ rule: "no_changes_detected", severity: "stable", path: "" }],
     };
   }
 
@@ -912,47 +911,39 @@ export async function applyClassificationRules(
 
     // Check registrar_change rule
     if (path === "registrar" && effectiveRules.registrar_change.enabled) {
-      signals.push({ rule: "registrar_change", path: diff.path });
-      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.registrar_change.severity]);
+      signals.push({ rule: "registrar_change", severity: effectiveRules.registrar_change.severity, path: diff.path });
     }
     // Check nameserver_change rule
     else if (path === "nameservers" && effectiveRules.nameserver_change.enabled) {
-      signals.push({ rule: "nameserver_change", path: diff.path });
-      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.nameserver_change.severity]);
+      signals.push({ rule: "nameserver_change", severity: effectiveRules.nameserver_change.severity, path: diff.path });
     }
     // Check mx_change rule
     else if (path === "mxrecords" && effectiveRules.mx_change.enabled) {
-      signals.push({ rule: "mx_change", path: diff.path });
-      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.mx_change.severity]);
+      signals.push({ rule: "mx_change", severity: effectiveRules.mx_change.severity, path: diff.path });
     }
     // Check spf_removed rule
     else if (path === "spfrecord" && effectiveRules.spf_removed.enabled) {
       if (diff.from && !diff.to) {
-        signals.push({ rule: "spf_removed", path: diff.path });
-        maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.spf_removed.severity]);
+        signals.push({ rule: "spf_removed", severity: effectiveRules.spf_removed.severity, path: diff.path });
       }
     }
     // Check dmarc_removed rule
     else if (path === "dmarcrecord" && effectiveRules.dmarc_removed.enabled) {
       if (diff.from && !diff.to) {
-        signals.push({ rule: "dmarc_removed", path: diff.path });
-        maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.dmarc_removed.severity]);
+        signals.push({ rule: "dmarc_removed", severity: effectiveRules.dmarc_removed.severity, path: diff.path });
       }
     }
     // Check asn_change rule
     else if (path === "asn" && effectiveRules.asn_change.enabled) {
-      signals.push({ rule: "asn_change", path: diff.path });
-      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.asn_change.severity]);
+      signals.push({ rule: "asn_change", severity: effectiveRules.asn_change.severity, path: diff.path });
     }
     // Check tls_expiration_changed rule
     else if (path === "sslexpires" && effectiveRules.tls_expiration_changed.enabled) {
-      signals.push({ rule: "tls_expiration_changed", path: diff.path });
-      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.tls_expiration_changed.severity]);
+      signals.push({ rule: "tls_expiration_changed", severity: effectiveRules.tls_expiration_changed.severity, path: diff.path });
     }
     // Check soa_serial_change rule
     else if (path === "soa.serial" && effectiveRules.soa_serial_change.enabled) {
-      signals.push({ rule: "soa_serial_change", path: diff.path });
-      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.soa_serial_change.severity]);
+      signals.push({ rule: "soa_serial_change", severity: effectiveRules.soa_serial_change.severity, path: diff.path });
     }
   }
 
@@ -963,14 +954,11 @@ export async function applyClassificationRules(
 
     const domainExpirationSignals = evaluateDomainExpiration(snapshot);
     signals.push(...domainExpirationSignals);
-
-    // Update maxSeverity based on expiration signals
-    for (const signal of [...tlsExpirationSignals, ...domainExpirationSignals]) {
-      if (signal.severity) {
-        maxSeverity = Math.max(maxSeverity, statusSeverities[signal.severity]);
-      }
-    }
   }
+
+  const maxSeverity = signals.reduce((max, signal) => {
+    return Math.max(max, statusSeverities[signal.severity]);
+  }, statusSeverities.stable);
 
   // Determine final status based on max severity
   const statusMap = ["stable", "drift", "risk", "critical"];
@@ -998,7 +986,7 @@ export async function getDomainStatus(domain: string): Promise<StatusResult> {
     // Return stable on error
     return {
       status: "stable",
-      signals: [{ rule: "error_fallback", path: "" }],
+      signals: [{ rule: "error_fallback", severity: "stable", path: "" }],
     };
   }
 }
