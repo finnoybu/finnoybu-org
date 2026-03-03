@@ -671,7 +671,7 @@ export default function Home() {
           textAlign: "center",
         }}
       >
-        © 2026 Domain Integrity Engine
+        © 2026 Finnoybu IP LLC. All rights reserved.
       </footer>
     </div>
   );
