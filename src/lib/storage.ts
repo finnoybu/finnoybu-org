@@ -598,21 +598,163 @@ export interface StatusResult {
   signals: StatusSignal[];
 }
 
+// ============================================================================
+// v0.1.4 Custom Classification Ruleset System
+// ============================================================================
+
+/**
+ * Rule override configuration for a specific classification rule.
+ * Allows enabling/disabling rules and overriding severity thresholds.
+ */
+export interface RuleOverride {
+  enabled?: boolean;
+  severity?: "stable" | "drift" | "risk"; // Override the default severity
+  threshold?: number; // Days threshold for expiration warnings
+}
+
+/**
+ * Custom classification ruleset loaded from ruleset.local.json.
+ * All fields optional; defaults apply if not specified.
+ */
+export interface CustomRuleset {
+  metadata?: {
+    name?: string;
+    description?: string;
+    createdAt?: string;
+  };
+  rules?: {
+    registrar_change?: RuleOverride;
+    nameserver_change?: RuleOverride;
+    mx_change?: RuleOverride;
+    spf_removed?: RuleOverride;
+    dmarc_removed?: RuleOverride;
+    asn_change?: RuleOverride;
+    tls_expiration_changed?: RuleOverride;
+    soa_serial_change?: RuleOverride;
+  };
+}
+
+/**
+ * Internal representation of merged and validated rules.
+ * All rules present with effective settings.
+ */
+interface EffectiveRules {
+  [key: string]: {
+    enabled: boolean;
+    severity: "stable" | "drift" | "risk";
+    threshold?: number;
+  };
+}
+
+/**
+ * Loads custom ruleset from ruleset.local.json if present.
+ * Returns null if file doesn't exist or is invalid.
+ */
+async function loadCustomRuleset(): Promise<CustomRuleset | null> {
+  try {
+    const rulesetPath = path.join(process.cwd(), "ruleset.local.json");
+    const content = await fs.readFile(rulesetPath, "utf-8");
+    const parsed = JSON.parse(content) as CustomRuleset;
+    return parsed;
+  } catch (_error) {
+    // File doesn't exist or is invalid JSON - silently return null
+    // This is expected behavior for optional ruleset
+    return null;
+  }
+}
+
+/**
+ * Validates custom ruleset structure.
+ * Returns true if valid, false otherwise.
+ */
+function validateRuleset(ruleset: CustomRuleset): boolean {
+  if (!ruleset || typeof ruleset !== "object") {
+    return false;
+  }
+
+  // Validate rules object if present
+  if (ruleset.rules && typeof ruleset.rules === "object") {
+    for (const [_key, override] of Object.entries(ruleset.rules)) {
+      if (!override || typeof override !== "object") {
+        return false;
+      }
+
+      // Validate override contents
+      if (override.enabled !== undefined && typeof override.enabled !== "boolean") {
+        return false;
+      }
+      if (override.severity && !["stable", "drift", "risk"].includes(override.severity)) {
+        return false;
+      }
+      if (override.threshold !== undefined && typeof override.threshold !== "number") {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Merges custom ruleset with internal defaults to create effective rules.
+ * Custom ruleset overrides take precedence over defaults.
+ */
+function mergeRuleset(custom: CustomRuleset | null): EffectiveRules {
+  // Default rules configuration
+  const defaults: EffectiveRules = {
+    registrar_change: { enabled: true, severity: "risk" },
+    nameserver_change: { enabled: true, severity: "risk" },
+    mx_change: { enabled: true, severity: "risk" },
+    spf_removed: { enabled: true, severity: "risk" },
+    dmarc_removed: { enabled: true, severity: "risk" },
+    asn_change: { enabled: true, severity: "risk" },
+    tls_expiration_changed: { enabled: true, severity: "drift" },
+    soa_serial_change: { enabled: true, severity: "drift" },
+  };
+
+  // If no custom ruleset, return defaults
+  if (!custom || !custom.rules) {
+    return defaults;
+  }
+
+  // Merge custom overrides with defaults
+  const effective = { ...defaults };
+
+  for (const [ruleName, override] of Object.entries(custom.rules)) {
+    if (override && ruleName in effective) {
+      const existing = effective[ruleName];
+
+      // Apply overrides
+      if (override.enabled !== undefined) {
+        existing.enabled = override.enabled;
+      }
+      if (override.severity !== undefined) {
+        existing.severity = override.severity;
+      }
+      if (override.threshold !== undefined) {
+        existing.threshold = override.threshold;
+      }
+    }
+  }
+
+  return effective;
+}
+
 /**
  * Applies deterministic classification rules to a list of diffs.
  * Returns status and list of triggered signals.
  *
- * Rules:
- * - risk: registrar_change, nameserver_change, mx_change, spf_removed, dmarc_removed, asn_change
- * - drift: tls_expiration_changed, soa_serial_change
- * - stable: no_changes_detected
+ * Rules can be customized via ruleset.local.json:
+ * - Enable/disable specific rules
+ * - Override severity (risk/drift/stable)
+ * - Set expiration warning thresholds
  *
- * Priority: risk > drift > stable
+ * Priority: risk > drift > stable (applied to effective rules)
  */
-export function applyClassificationRules(diffs: DiffEntry[]): StatusResult {
+export async function applyClassificationRules(diffs: DiffEntry[]): Promise<StatusResult> {
   const signals: StatusSignal[] = [];
-  let riskDetected = false;
-  let driftDetected = false;
+  const statusSeverities: { [status: string]: number } = { stable: 0, drift: 1, risk: 2 };
+  let maxSeverity = statusSeverities.stable;
 
   // No diffs means stable
   if (diffs.length === 0) {
@@ -622,48 +764,74 @@ export function applyClassificationRules(diffs: DiffEntry[]): StatusResult {
     };
   }
 
-  // Evaluate each diff against classification rules
+  // Load and merge ruleset
+  let customRuleset: CustomRuleset | null = null;
+  try {
+    customRuleset = await loadCustomRuleset();
+    if (customRuleset && !validateRuleset(customRuleset)) {
+      console.warn("Invalid custom ruleset, falling back to defaults");
+      customRuleset = null;
+    }
+  } catch (error) {
+    console.error("Error loading custom ruleset:", error);
+    // Continue with defaults
+  }
+
+  const effectiveRules = mergeRuleset(customRuleset);
+
+  // Evaluate each diff against rules
   for (const diff of diffs) {
     const path = diff.path.toLowerCase();
 
-    // RISK RULES
-    if (path === "registrar") {
+    // Check registrar_change rule
+    if (path === "registrar" && effectiveRules.registrar_change.enabled) {
       signals.push({ rule: "registrar_change", path: diff.path });
-      riskDetected = true;
-    } else if (path === "nameservers") {
+      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.registrar_change.severity]);
+    }
+    // Check nameserver_change rule
+    else if (path === "nameservers" && effectiveRules.nameserver_change.enabled) {
       signals.push({ rule: "nameserver_change", path: diff.path });
-      riskDetected = true;
-    } else if (path === "mxrecords") {
+      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.nameserver_change.severity]);
+    }
+    // Check mx_change rule
+    else if (path === "mxrecords" && effectiveRules.mx_change.enabled) {
       signals.push({ rule: "mx_change", path: diff.path });
-      riskDetected = true;
-    } else if (path === "spfrecord") {
-      // SPF removed if from has value and to is empty
+      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.mx_change.severity]);
+    }
+    // Check spf_removed rule
+    else if (path === "spfrecord" && effectiveRules.spf_removed.enabled) {
       if (diff.from && !diff.to) {
         signals.push({ rule: "spf_removed", path: diff.path });
-        riskDetected = true;
+        maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.spf_removed.severity]);
       }
-    } else if (path === "dmarcrecord") {
-      // DMARC removed if from has value and to is empty
+    }
+    // Check dmarc_removed rule
+    else if (path === "dmarcrecord" && effectiveRules.dmarc_removed.enabled) {
       if (diff.from && !diff.to) {
         signals.push({ rule: "dmarc_removed", path: diff.path });
-        riskDetected = true;
+        maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.dmarc_removed.severity]);
       }
-    } else if (path === "asn") {
-      signals.push({ rule: "asn_change", path: diff.path });
-      riskDetected = true;
     }
-    // DRIFT RULES
-    else if (path === "sslexpires") {
+    // Check asn_change rule
+    else if (path === "asn" && effectiveRules.asn_change.enabled) {
+      signals.push({ rule: "asn_change", path: diff.path });
+      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.asn_change.severity]);
+    }
+    // Check tls_expiration_changed rule
+    else if (path === "sslexpires" && effectiveRules.tls_expiration_changed.enabled) {
       signals.push({ rule: "tls_expiration_changed", path: diff.path });
-      driftDetected = true;
-    } else if (path === "soa.serial") {
+      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.tls_expiration_changed.severity]);
+    }
+    // Check soa_serial_change rule
+    else if (path === "soa.serial" && effectiveRules.soa_serial_change.enabled) {
       signals.push({ rule: "soa_serial_change", path: diff.path });
-      driftDetected = true;
+      maxSeverity = Math.max(maxSeverity, statusSeverities[effectiveRules.soa_serial_change.severity]);
     }
   }
 
-  // Determine final status based on priority: risk > drift > stable
-  const status: StatusResult["status"] = riskDetected ? "risk" : driftDetected ? "drift" : "stable";
+  // Determine final status based on max severity
+  const statusMap = ["stable", "drift", "risk"];
+  const status = (statusMap[maxSeverity] || "stable") as StatusResult["status"];
 
   return {
     status,
@@ -673,6 +841,7 @@ export function applyClassificationRules(diffs: DiffEntry[]): StatusResult {
 
 /**
  * Gets the stability status for a domain by computing the diff and applying classification rules.
+ * Respects custom ruleset overrides if present.
  * Returns stable status if fewer than 2 snapshots exist.
  */
 export async function getDomainStatus(domain: string): Promise<StatusResult> {
