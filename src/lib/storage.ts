@@ -591,10 +591,12 @@ export async function getDomainDiff(domain: string): Promise<DiffEntry[]> {
 export interface StatusSignal {
   rule: string;
   path: string;
+  severity?: "stable" | "drift" | "risk" | "critical";
+  days_remaining?: number;
 }
 
 export interface StatusResult {
-  status: "stable" | "drift" | "risk";
+  status: "stable" | "drift" | "risk" | "critical";
   signals: StatusSignal[];
 }
 
@@ -751,13 +753,138 @@ function mergeRuleset(custom: CustomRuleset | null): EffectiveRules {
  *
  * Priority: risk > drift > stable (applied to effective rules)
  */
-export async function applyClassificationRules(diffs: DiffEntry[]): Promise<StatusResult> {
+
+// ============================================================================
+// v0.1.5 Expiration Warning System
+// ============================================================================
+
+/**
+ * Parses ISO 8601 date string to UTC milliseconds.
+ * Returns 0 if date is invalid (safe fallback).
+ */
+function parseUTCDate(dateStr: string): number {
+  if (!dateStr) return 0;
+  try {
+    return new Date(dateStr).getTime();
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Calculates days remaining until expiration.
+ * Formula: floor((expiry_utc - now_utc) / 86400000)
+ * Returns negative number if already expired.
+ */
+function daysRemaining(expiryUTC: number): number {
+  const nowUTC = Date.now();
+  const msRemaining = expiryUTC - nowUTC;
+  return Math.floor(msRemaining / 86400000);
+}
+
+/**
+ * Evaluates TLS certificate expiration from snapshot.
+ * Returns array of expiration signals (critical/risk/drift).
+ */
+function evaluateTLSExpiration(snapshot: DomainSnapshot): StatusSignal[] {
   const signals: StatusSignal[] = [];
-  const statusSeverities: { [status: string]: number } = { stable: 0, drift: 1, risk: 2 };
+
+  if (!snapshot.sslExpires) {
+    return signals; // No TLS data available
+  }
+
+  const expiryUTC = parseUTCDate(snapshot.sslExpires);
+  if (expiryUTC === 0) {
+    return signals; // Invalid date
+  }
+
+  const days = daysRemaining(expiryUTC);
+
+  if (days <= 0) {
+    signals.push({
+      rule: "tls_certificate_expired",
+      path: "sslExpires",
+      severity: "critical",
+      days_remaining: days,
+    });
+  } else if (days <= 7) {
+    signals.push({
+      rule: "tls_certificate_expiring_soon",
+      path: "sslExpires",
+      severity: "risk",
+      days_remaining: days,
+    });
+  } else if (days <= 14) {
+    signals.push({
+      rule: "tls_certificate_expiration_warning",
+      path: "sslExpires",
+      severity: "drift",
+      days_remaining: days,
+    });
+  }
+
+  return signals;
+}
+
+/**
+ * Evaluates domain registration expiration from snapshot.
+ * Returns array of expiration signals (critical/risk/drift).
+ */
+function evaluateDomainExpiration(snapshot: DomainSnapshot): StatusSignal[] {
+  const signals: StatusSignal[] = [];
+
+  if (!snapshot.expires) {
+    return signals; // No expiration data available
+  }
+
+  const expiryUTC = parseUTCDate(snapshot.expires);
+  if (expiryUTC === 0) {
+    return signals; // Invalid date
+  }
+
+  const days = daysRemaining(expiryUTC);
+
+  if (days <= 0) {
+    signals.push({
+      rule: "domain_registration_expired",
+      path: "expires",
+      severity: "critical",
+      days_remaining: days,
+    });
+  } else if (days <= 14) {
+    signals.push({
+      rule: "domain_registration_expiring_soon",
+      path: "expires",
+      severity: "risk",
+      days_remaining: days,
+    });
+  } else if (days <= 30) {
+    signals.push({
+      rule: "domain_registration_expiration_warning",
+      path: "expires",
+      severity: "drift",
+      days_remaining: days,
+    });
+  }
+
+  return signals;
+}
+
+export async function applyClassificationRules(
+  diffs: DiffEntry[],
+  snapshot?: DomainSnapshot
+): Promise<StatusResult> {
+  const signals: StatusSignal[] = [];
+  const statusSeverities: { [status: string]: number } = {
+    stable: 0,
+    drift: 1,
+    risk: 2,
+    critical: 3,
+  };
   let maxSeverity = statusSeverities.stable;
 
-  // No diffs means stable
-  if (diffs.length === 0) {
+  // No diffs means stable (by default)
+  if (diffs.length === 0 && !snapshot) {
     return {
       status: "stable",
       signals: [{ rule: "no_changes_detected", path: "" }],
@@ -829,8 +956,24 @@ export async function applyClassificationRules(diffs: DiffEntry[]): Promise<Stat
     }
   }
 
+  // Evaluate expiration signals if snapshot provided
+  if (snapshot) {
+    const tlsExpirationSignals = evaluateTLSExpiration(snapshot);
+    signals.push(...tlsExpirationSignals);
+
+    const domainExpirationSignals = evaluateDomainExpiration(snapshot);
+    signals.push(...domainExpirationSignals);
+
+    // Update maxSeverity based on expiration signals
+    for (const signal of [...tlsExpirationSignals, ...domainExpirationSignals]) {
+      if (signal.severity) {
+        maxSeverity = Math.max(maxSeverity, statusSeverities[signal.severity]);
+      }
+    }
+  }
+
   // Determine final status based on max severity
-  const statusMap = ["stable", "drift", "risk"];
+  const statusMap = ["stable", "drift", "risk", "critical"];
   const status = (statusMap[maxSeverity] || "stable") as StatusResult["status"];
 
   return {
@@ -841,13 +984,15 @@ export async function applyClassificationRules(diffs: DiffEntry[]): Promise<Stat
 
 /**
  * Gets the stability status for a domain by computing the diff and applying classification rules.
+ * Also evaluates expiration warnings from the latest snapshot.
  * Respects custom ruleset overrides if present.
  * Returns stable status if fewer than 2 snapshots exist.
  */
 export async function getDomainStatus(domain: string): Promise<StatusResult> {
   try {
     const diffs = await getDomainDiff(domain);
-    return applyClassificationRules(diffs);
+    const latestSnapshot = await getLatestSnapshot(domain);
+    return applyClassificationRules(diffs, latestSnapshot || undefined);
   } catch (error) {
     console.error(`Error computing status for ${domain}:`, error);
     // Return stable on error
