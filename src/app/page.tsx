@@ -215,10 +215,10 @@ export default function Home() {
     <div style={{ minHeight: "100vh", fontFamily: "system-ui, sans-serif", padding: "2rem", backgroundColor: "#f9fafb" }}>
       <header style={{ marginBottom: "2rem", borderBottom: "2px solid #e5e7eb", paddingBottom: "1rem", backgroundColor: "white", padding: "1.5rem", borderRadius: "8px" }}>
         <h1 style={{ margin: "0 0 0.5rem 0", fontSize: "2rem", fontWeight: "600" }}>
-          Finnoybu Organization — Domain Governance Dashboard
+          Domain Integrity Engine
         </h1>
         <p style={{ margin: "0", color: "#6b7280", fontSize: "0.95rem" }}>
-          Stability monitoring and snapshot management
+          Domain governance dashboard for integrity monitoring and snapshot management
         </p>
       </header>
 
@@ -659,6 +659,20 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      <footer
+        style={{
+          maxWidth: "1400px",
+          margin: "2rem auto 0 auto",
+          paddingTop: "1rem",
+          borderTop: "1px solid #e5e7eb",
+          color: "#6b7280",
+          fontSize: "0.875rem",
+          textAlign: "center",
+        }}
+      >
+        © 2026 Domain Integrity Engine
+      </footer>
     </div>
   );
 }
