@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Finnoybu Domain Snapshot Tool",
-  description: "Domain Governance Snapshot Tool - Query RDAP, DNS, and SSL information",
+  title: "Domain Integrity Engine",
+  description: "Domain integrity monitoring for RDAP, DNS, and SSL/TLS signals",
 };
 
 export default function RootLayout({
