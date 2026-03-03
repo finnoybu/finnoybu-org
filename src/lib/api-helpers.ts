@@ -18,6 +18,13 @@ interface ErrorOptions {
   requestId?: string;
 }
 
+interface UnauthorizedPayload {
+  error: "unauthorized";
+  code: "AUTH_REQUIRED";
+  message: "Valid authorization token required";
+  request_id?: string;
+}
+
 export function getRequestId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -56,6 +63,17 @@ export function upstreamFailure(message: string, requestId?: string): NextRespon
 
 export function internalError(message: string, requestId?: string): NextResponse<ErrorPayload> {
   return errorResponse("internal_error", message, 500, { requestId });
+}
+
+export function authRequired(requestId?: string): NextResponse<UnauthorizedPayload> {
+  const payload: UnauthorizedPayload = {
+    error: "unauthorized",
+    code: "AUTH_REQUIRED",
+    message: "Valid authorization token required",
+    ...(requestId ? { request_id: requestId } : {}),
+  };
+
+  return NextResponse.json(payload, { status: 401 });
 }
 
 // Optional in-memory sliding-window rate limiting (disabled by default)
