@@ -1,0 +1,43 @@
+name: Smokes
+
+# Run the verification scripts on every PR + push to main. Complementary to
+# the existing CI workflows (which cover lint + build): this one drives the
+# auth state machine, channel/route resolution, settings layering, and the
+# HTTP surface end-to-end (catching route-layer regressions the lib smokes
+# miss, e.g. the v0.3.0_PATCH unawaited-handler bug).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: smokes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smokes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Auth state machine
+        run: npx tsx scripts/smoke-auth.ts
+
+      - name: Alert channels + routing
+        run: npx tsx scripts/smoke-alerts.ts
+
+      - name: Settings + scheduling
+        run: npx tsx scripts/smoke-settings.ts
+
+      - name: HTTP surface (incl. regression tests)
+        run: npx tsx scripts/smoke-http.ts
